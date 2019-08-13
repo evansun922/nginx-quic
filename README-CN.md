@@ -88,8 +88,7 @@ Syntax:                listen   quic;
 Default:               listen   *:80 | *:8000 quic;
 Context:              server
 Example:             listen       443 quic reuseport sndbuf=1048576 rcvbuf=1048576;
-为listen配置新加一个参数quic， 只要带这个参数，这个监听就会使用quic协议，
-      需要注意 quic 参数与ssl， http2参数不兼容，不可同时使用，使用quic参数，务必带上reuseport
+为listen配置新加一个参数quic， 只要带这个参数，这个监听就会使用quic协议，需要注意 quic 参数与ssl， http2参数不兼容，不可同时使用，使用quic参数，务必带上reuseport
 
 
 Syntax:        quic_ssl_certificate       /path/to/tv.test.com.crt;
@@ -119,4 +118,4 @@ Context:        http,  server,   location
 ```
 
 ## 作者
-- sunlei     &emsp; email: &emsp;sswin0922@163.com
+- sunlei     &emsp; email: sswin0922@163.com
