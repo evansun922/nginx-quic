@@ -1,6 +1,6 @@
 ## 帮助我们改进 Nginx-Quic
 
----
+
 # 开始 Nginx-Quic
 
 ## nginx-quic 介绍
@@ -14,7 +14,7 @@ bin目录下提供了一个已经编译好的nginx-quic，大家可以在centos�
 ---
 
 ## 编译
-nginx-quic编译步骤比较复杂，因为用到了chromium项目中的编译环境，所以我尽量说的详细一些，另外，可以看一些gn相关的[文档](https://chromium.googlesource.com/chromium/src/+/56807c6cb383140af0c03da8f6731d77785d7160/tools/gn/docs/reference.md)学习一下.
+nginx-quic编译步骤比较复杂，因为用到了chromium项目中的编译环境，所以我尽量说的详细一些，另外，可以看一些[gn相关的文档](https://chromium.googlesource.com/chromium/src/+/56807c6cb383140af0c03da8f6731d77785d7160/tools/gn/docs/reference.md)学习一下。
 
 - 整个编译需要在ubuntu 14系统下进行，可以使用虚拟机编译，具体可见chromium编译对linux系统版本的要求。
 - 下载chromium，下载详见： [chromium的下载及编译](https://chromium.googlesource.com/chromium/src/+/master/docs/linux_build_instructions.md/)。
@@ -83,36 +83,40 @@ nginx-quic编译步骤比较复杂，因为用到了chromium项目中的编译�
 >               }
 
 ###  Directives
-
-__Syntax:__   &emsp;&emsp;&emsp; listen quic;<br>
-__Default:__ &emsp;&emsp;&emsp; listen *:80 | *:8000 quic;<br>
-__Context:__&emsp;&emsp;&emsp; server<br>
-__Example:__&emsp;&emsp;&emsp;listen       443 quic reuseport sndbuf=1048576 rcvbuf=1048576;<br>
+```
+Syntax:                listen   quic;
+Default:               listen   *:80 | *:8000 quic;
+Context:              server
+Example:             listen       443 quic reuseport sndbuf=1048576 rcvbuf=1048576;
 为listen配置新加一个参数quic， 只要带这个参数，这个监听就会使用quic协议，
-      需要注意 quic 参数与ssl， http2参数不兼容，不可同时使用，使用quic参数，务必带上reuseport<br>
-<br>
-<br>
-__Syntax:__ &emsp;&emsp;&emsp;	  quic_ssl_certificate&emsp;&emsp;/path/to/tv.test.com.crt;<br>
-__Default:__	&emsp;&emsp;&emsp;—<br>
-__Context:__&emsp;&emsp;&emsp;server<br>
- quic用到的ssl证书<br>
-<br>
-<br>
-__Syntax:__ &emsp;&emsp;&emsp;	  quic_ssl_certificate_key &emsp;&emsp;/path/to/tv.test.com.pkcs8;<br>
-__Default:__	&emsp;&emsp;&emsp;—<br>
-__Context:__	&emsp;&emsp;&emsp;server<br>
-quic用到的ssl证书的key<br>
-可以使用下面的命令，将*.key转换成*.pkcs8:<br>
-openssl pkcs8 -topk8 -outform DER -inform PEM -in tv.test.com.key -out tv.test.com.pkcs8 -nocrypt<br>
-<br>
-<br>
-__Syntax:__ &emsp;&emsp;&emsp;	  quic_bbr&emsp;on | off;<br>
-__Default:__&emsp;&emsp;&emsp;	quic_bbr&emsp;off;<br>
-__Context:__&emsp;&emsp;&emsp;	http, &emsp;server, &emsp;location<br>
-quic是否启用bbr拥塞算法<br>
-<br>
-<br>
-__Syntax:__	 &emsp;&emsp;&emsp; quic_flush_interval&emsp;number;<br>
-__Default:__ &emsp;&emsp;&emsp; quic_flush_interval&emsp;40;<br>
-__Context:__ &emsp;&emsp;&emsp; http, &emsp;server, &emsp;location<br>
+      需要注意 quic 参数与ssl， http2参数不兼容，不可同时使用，使用quic参数，务必带上reuseport
+
+
+Syntax:        quic_ssl_certificate       /path/to/tv.test.com.crt;
+Default:        — 
+Context:      server
+ quic用到的ssl证书
+
+
+Syntax:               quic_ssl_certificate_key          /path/to/tv.test.com.pkcs8;
+Default:              —
+Context:             server
+quic用到的ssl证书的key
+可以使用下面的命令，将*.key转换成*.pkcs8:
+openssl pkcs8 -topk8 -outform DER -inform PEM -in tv.test.com.key -out tv.test.com.pkcs8 -nocrypt
+
+
+Syntax:            quic_bbr      on | off;
+Default:           quic_bbr      off;
+Context:          http,  server,  location
+quic是否启用bbr拥塞算法
+
+
+Syntax:          quic_flush_interval     number;
+Default:         quic_flush_interval     40;
+Context:        http,  server,   location
 间隔多少毫秒刷新一次系统调用sendmmsg的缓冲输出。
+```
+
+## 作者
+- sunlei     &emsp; email: &emsp;sswin0922@163.com
