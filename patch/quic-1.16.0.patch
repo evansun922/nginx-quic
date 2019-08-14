@@ -183,4 +183,3 @@ diff -ru src/http/ngx_http_request.h src-quic/http/ngx_http_request.h
  
  #define NGX_HTTP_UNKNOWN                   0x0001
  #define NGX_HTTP_GET                       0x0002
-只在 src-quic/ 存在：.vscode

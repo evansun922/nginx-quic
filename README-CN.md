@@ -18,14 +18,14 @@ nginx-quic编译步骤比较复杂，因为用到了chromium项目中的编译�
 
 - 整个编译需要在ubuntu 14系统下进行，可以使用虚拟机编译，具体可见chromium编译对linux系统版本的要求。
 - 下载chromium，下载详见： [chromium的下载及编译](https://chromium.googlesource.com/chromium/src/+/master/docs/linux_build_instructions.md/)。
-- 下载nginx-1.16.0版本源码。
+- 下载nginx版本源码。
 - 执行mk2gn.py脚本，脚本具体参数如下：
 ```         
             python3 mk2gn.py </path/to/nginx> </path/to/chromium/src> <args>
 
              </path/to/nginx>:                      nginx源码根目录路径。
              </path/to/chromium/src>:    chromium源码src目录路径。
-             < args>:                                          configure nginx时，编译者所需的参数。                 
+             < args>:                                          configure nginx时，所需的参数。                 
 ```
 - 切到chromium的src目录，执行 gn gen out/Release --args="is_component_build=false is_debug=false"。
 - 执行 ninja -C out/Release  nginx，编译好的nginx-quic就在 out/Release目录中。
