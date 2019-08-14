@@ -21,19 +21,18 @@ nginx-quic编译步骤比较复杂，因为用到了chromium项目中的编译�
 - 下载nginx-1.16.0版本源码。
 - 执行mk2gn.py脚本，脚本具体参数如下：
 ```         
-            python3 mk2gn.py </path/to/nginx> </path/to/chromium/src> <version> < args>
+            python3 mk2gn.py </path/to/nginx> </path/to/chromium/src> <args>
 
              </path/to/nginx>:                      nginx源码根目录路径。
              </path/to/chromium/src>:    chromium源码src目录路径。
-             <version> :                                     ningx的版本号，例如：1.16.0，1.14.2，1.17.1等。
-             < args>：                                        configure nginx时，编译者所需的参数。                 
+             < args>:                                          configure nginx时，编译者所需的参数。                 
 ```
 - 切到chromium的src目录，执行 gn gen out/Release --args="is_component_build=false is_debug=false"。
 - 执行 ninja -C out/Release  nginx，编译好的nginx-quic就在 out/Release目录中。
 
 
 ### 注意事项：
-- 如果编译者需要自己定义一些宏或者追加一些库的话，可以手动修改chromium/src/net/BUILD.gn文件，修改nginx相关的配置项。
+- 如果编译者需要自己定义一些宏或者追加一些库的话，可以手动修改 __chromium/src/net/BUILD.gn__ 文件，修改nginx相关的配置项。
 ```
                             executable("nginx") {
                                 sources = [

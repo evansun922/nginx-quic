@@ -23,19 +23,18 @@ The compilation needs to be carried out under ubuntu 14, which can be compiled u
 - download nginx source code.
 - run mk2gn.py, The parameters of the script are as follows:
 ```         
-            python3 mk2gn.py </path/to/nginx> </path/to/chromium/src> <version> < args>
+            python3 mk2gn.py </path/to/nginx> </path/to/chromium/src> <args>
 
              </path/to/nginx>:                      path of nginx.
              </path/to/chromium/src>:    path of chromium/src.
-             <version> :                                     version of ningx (1.16.0，1.14.2，1.17.1etc).
-             < args>：                                        when configure nginx, the parameters required to configure.                 
+             < args>:                                          when configure nginx, the parameters required to configure.                 
 ```
 - cd /path/to/chromium/src, and run __gn gen out/Release --args="is_component_build=false is_debug=false"__.
 - run __ninja -C out/Release  nginx__.
 
 
 ### Mark：
-- If you need to define macros or add some libraries, you can manually modify the chromium/src/net/BUILD.gn about  the configuration of nginx.
+- If you need to define macros or add some libraries, you can manually modify the __chromium/src/net/BUILD.gn__ about  the configuration of nginx.
 ```
                             executable("nginx") {
                                 sources = [

@@ -1,0 +1,519 @@
+
+/*
+ * Copyright (C) sunlei.
+ */
+
+
+#include <ngx_config.h>
+#include <ngx_core.h>
+#include <ngx_http.h>
+#include "ngx_http_quic_module.h"
+#include "ngx_http_quic_chromium.h"
+
+
+static ngx_int_t ngx_http_quic_add_variables(ngx_conf_t *cf);
+static ngx_int_t ngx_http_quic_module_init(ngx_cycle_t *cycle);
+static ngx_int_t ngx_http_quic_process_init(ngx_cycle_t *cycle);
+static void ngx_http_quic_exit_process(ngx_cycle_t *cycle);
+
+
+static void *ngx_http_quic_create_srv_conf(ngx_conf_t *cf);
+static char *ngx_http_quic_merge_srv_conf(ngx_conf_t *cf, void *parent,
+    void *child);
+
+
+static ngx_int_t
+ngx_http_quic_check_and_rewrite_handler(ngx_cycle_t *cycle,
+                                  ngx_listening_t *ls,
+                                  ngx_http_addr_conf_t *conf);
+static void ngx_do_quic_interval(ngx_event_t *ev);
+
+
+
+
+static ngx_command_t  ngx_http_quic_commands[] = {
+
+  { ngx_string("quic_ssl_certificate"),
+    NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_CONF_TAKE1,
+    ngx_conf_set_str_slot,
+    NGX_HTTP_SRV_CONF_OFFSET,
+    offsetof(ngx_http_quic_srv_conf_t, certificate),
+    NULL },
+
+  { ngx_string("quic_ssl_certificate_key"),
+    NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_CONF_TAKE1,
+    ngx_conf_set_str_slot,
+    NGX_HTTP_SRV_CONF_OFFSET,
+    offsetof(ngx_http_quic_srv_conf_t, certificate_key),
+    NULL },
+
+  { ngx_string("quic_bbr"),
+    NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_FLAG,
+    ngx_conf_set_flag_slot,
+    NGX_HTTP_SRV_CONF_OFFSET,
+    offsetof(ngx_http_quic_srv_conf_t, bbr),
+    NULL },
+
+  { ngx_string("quic_flush_interval"),
+    NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
+    ngx_conf_set_size_slot,
+    NGX_HTTP_SRV_CONF_OFFSET,
+    offsetof(ngx_http_quic_srv_conf_t, flush_interval),
+    NULL },  
+ 
+
+  ngx_null_command
+};
+
+
+static ngx_http_module_t  ngx_http_quic_module_ctx = {
+  ngx_http_quic_add_variables,             /* preconfiguration */
+  NULL,                                    /* postconfiguration */
+
+  NULL,                                    /* create main configuration */
+  NULL,                                    /* init main configuration */
+
+  ngx_http_quic_create_srv_conf,           /* create server configuration */
+  ngx_http_quic_merge_srv_conf,            /* merge server configuration */
+
+  NULL,                                    /* create location configuration */
+  NULL                                     /* merge location configuration */
+};
+
+
+ngx_module_t  ngx_http_quic_module = {
+  NGX_MODULE_V1,
+  &ngx_http_quic_module_ctx,             /* module context */
+  ngx_http_quic_commands,                /* module directives */
+  NGX_HTTP_MODULE,                       /* module type */
+  NULL,                                  /* init master */
+  ngx_http_quic_module_init,             /* init module */
+  ngx_http_quic_process_init,            /* init process */
+  NULL,                                  /* init thread */
+  NULL,                                  /* exit thread */
+  ngx_http_quic_exit_process,            /* exit process */
+  NULL,                                  /* exit master */
+  NGX_MODULE_V1_PADDING
+};
+
+
+
+static ngx_int_t
+ngx_http_quic_add_variables(ngx_conf_t *cf)
+{
+
+  return NGX_OK;
+}
+
+
+static ngx_int_t
+ngx_http_quic_module_init(ngx_cycle_t *cycle)
+{
+  ngx_uint_t                i,j;
+  ngx_listening_t           *ls;
+  ngx_http_port_t           *port;
+#if (NGX_HAVE_INET6)
+  ngx_http_in6_addr_t       *addrs6;
+#endif
+  ngx_http_in_addr_t        *addrs;
+
+  
+  ls = cycle->listening.elts;
+  for (i = 0; i < cycle->listening.nelts; i++) {
+    
+    if (ls[i].ignore) {
+      continue;
+    }
+
+    if (ls[i].type != 2) { // udp
+      continue;
+    }
+
+    if (ls[i].handler != ngx_http_init_connection) {
+      continue;
+    }
+
+    port = ls[i].servers;
+    
+    switch (ls[i].sockaddr->sa_family) {
+
+#if (NGX_HAVE_INET6)
+      case AF_INET6:
+        addrs6 = port->addrs;
+        for (j = 0; j < port->naddrs; j++) {
+          if (ngx_http_quic_check_and_rewrite_handler(cycle, &ls[i],
+                                     &addrs6[j].conf) != NGX_OK) {
+            return NGX_ERROR;
+          }
+        }
+      break;
+#endif
+      default: /* AF_INET */
+        addrs = port->addrs;
+        for (j = 0; j < port->naddrs; j++) {
+          if (ngx_http_quic_check_and_rewrite_handler(cycle, &ls[i],
+                                      &addrs[j].conf) != NGX_OK) {
+            return NGX_ERROR;
+          }
+        }
+      break;
+    }
+  }
+  return NGX_OK;
+}
+
+
+static ngx_int_t
+ngx_http_quic_process_init(ngx_cycle_t *cycle)
+{
+  ngx_uint_t                      i;
+  ngx_listening_t                 *ls;
+  ngx_connection_t                *lc;
+  ngx_pool_t                      *pool;
+  ngx_http_quic_context_t         *quic_ctx;
+  ngx_event_t                     *ev;
+
+  ngx_http_port_t                 *port;
+#if (NGX_HAVE_INET6)
+  ngx_http_in6_addr_t             *addrs6;
+#endif
+  ngx_http_in_addr_t              *addrs;
+  ngx_http_addr_conf_t            *conf;
+  
+  ngx_http_quic_srv_conf_t        *qscf;
+  int                             p;
+  
+  
+  ls = cycle->listening.elts;
+  for (i = 0; i < cycle->listening.nelts; i++) {
+      
+    if (ls[i].handler == ngx_http_quic_handler_buf_by_quic) {
+
+      port = ls[i].servers;
+
+      switch (ls[i].sockaddr->sa_family) {
+
+#if (NGX_HAVE_INET6)
+        case AF_INET6:
+          addrs6 = port->addrs;
+          conf = &addrs6[0].conf;
+
+          p = ntohs(((struct sockaddr_in6*)ls[i].sockaddr)->sin6_port);
+        break;
+#endif
+        default: /* AF_INET */
+          addrs = port->addrs;
+          conf = &addrs[0].conf;
+
+          p = ntohs(((struct sockaddr_in*)ls[i].sockaddr)->sin_port);
+        break;
+      }
+
+      
+      qscf = ngx_http_conf_get_module_srv_conf(conf->default_server,
+                                               ngx_http_quic_module);
+      
+      
+      lc = ls[i].connection;
+      if (lc == NULL) {
+        continue;
+      }
+            
+      if (lc->data != NULL) {
+        ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
+                      "lc->data in ngx_listening_t of "
+                      "ngx_connection_t is not NULL");
+        return NGX_ERROR;
+      }
+
+      pool = ngx_create_pool(2048, cycle->log);
+      if (pool == NULL) {
+        ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
+                      "ngx_create_pool failed for ngx_http_quic_context_t");
+        return NGX_ERROR;
+      }
+      quic_ctx       = ngx_pcalloc(pool, sizeof(ngx_http_quic_context_t));
+      quic_ctx->pool = pool;
+      quic_ctx->lc   = lc;
+      ev             = &quic_ctx->ngx_quic_interval_event;
+      
+      ev->handler    = ngx_do_quic_interval;
+      ev->log        = cycle->log;
+      ev->data       = quic_ctx;
+
+      if (!ev->timer_set) {
+        ngx_add_timer(ev, qscf->flush_interval);
+        ev->timer_set = 1;
+      }
+
+      quic_ctx->flush_interval = qscf->flush_interval;
+
+      if (qscf->certificate_key.len == 0) {
+        ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
+                      "no \"quic_ssl_certificate_key\" is defined for "
+                      "the \"quic\".");
+        return NGX_ERROR;
+      }
+
+      if (qscf->certificate.len == 0) {
+        ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
+                      "no \"quic_ssl_certificate\" is defined for "
+                      "the \"quic\".");
+        return NGX_ERROR;
+      }
+
+      if (ngx_get_full_name(pool, &cycle->conf_prefix, &qscf->certificate) 
+          != NGX_OK) {
+        ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
+                      "ngx_get_full_name failed, %V",
+                      &qscf->certificate);
+        return NGX_ERROR;
+      }
+
+      if (ngx_get_full_name(pool, &cycle->conf_prefix, &qscf->certificate_key) 
+          != NGX_OK) {
+        ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
+                      "ngx_get_full_name failed, %V",
+                      &qscf->certificate_key);
+        return NGX_ERROR;
+      }
+
+      if (access((char*)qscf->certificate.data, F_OK) == -1) { 
+        ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
+                      "quic_ssl_certificate file not exist, %V",
+                      &qscf->certificate);
+        return NGX_ERROR;
+      }
+
+      if (access((char*)qscf->certificate_key.data, F_OK) == -1) {
+        ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
+                      "quic_ssl_certificate_key not exist, %V",
+                      &qscf->certificate_key);
+        return NGX_ERROR;
+      }
+      
+      quic_ctx->chromium_server = ngx_http_quic_init_chromium(quic_ctx,
+                                                              ls[i].fd,
+                                                              p,
+                                                              ls[i].sockaddr->sa_family,
+                                                              &qscf->certificate,
+                                                              &qscf->certificate_key,
+                                                              qscf->bbr);
+      if (quic_ctx->chromium_server == NULL) {
+        ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "chromium init failed");
+        return NGX_ERROR;
+      }
+      
+      lc->data = quic_ctx;
+      lc->read->handler = ngx_event_quic_recvmsg;
+      lc->write->log = lc->log;
+      lc->write->handler = ngx_event_quic_can_sendmsg;
+      // ls[i].handler = ngx_http_init_connection;
+    }
+  }
+
+  
+  return NGX_OK;  
+}
+
+
+static void
+ngx_http_quic_exit_process(ngx_cycle_t *cycle)
+{
+
+  ngx_uint_t                      i;
+  ngx_listening_t                 *ls;
+  ngx_connection_t                *lc;
+  ngx_pool_t                      *pool;
+  ngx_http_quic_context_t         *quic_ctx;
+  ngx_event_t                     *ev;
+  
+  
+  ls = cycle->listening.elts;
+  for (i = 0; i < cycle->listening.nelts; i++) {
+      
+    if (ls[i].handler == ngx_http_quic_handler_buf_by_quic) {
+      
+      lc = ls[i].connection;
+      if (lc == NULL) {
+        continue;
+      }
+            
+      if (lc->data == NULL) {
+        continue;
+      }
+
+      quic_ctx = lc->data;
+
+      if (quic_ctx->chromium_server) {
+        ngx_free_quic(quic_ctx->chromium_server);
+        quic_ctx->chromium_server = NULL;
+      }
+
+      ev = &quic_ctx->ngx_quic_interval_event;
+      if (ev->timer_set) {
+        ngx_del_timer(ev);
+      }
+
+      quic_ctx->lc = NULL;
+      
+      pool = quic_ctx->pool;
+      ngx_pfree(pool, quic_ctx);
+      
+      ngx_destroy_pool(pool);
+
+      lc->data = NULL;
+    }
+    
+  }
+
+}
+
+ 
+static void *
+ngx_http_quic_create_srv_conf(ngx_conf_t *cf)
+{
+  ngx_http_quic_srv_conf_t  *qscf;
+
+  qscf = ngx_pcalloc(cf->pool, sizeof(ngx_http_quic_srv_conf_t));
+  if (qscf == NULL) {
+    return NULL;
+  }
+
+  qscf->bbr = NGX_CONF_UNSET;
+  qscf->flush_interval = NGX_CONF_UNSET_SIZE;
+
+
+  return qscf;
+}
+
+
+static char *
+ngx_http_quic_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
+{
+  ngx_http_quic_srv_conf_t *prev = parent;
+  ngx_http_quic_srv_conf_t *conf = child;
+
+  // if (conf->certificate.len == 0) {
+  //   ngx_log_error(NGX_LOG_EMERG, cf->log, 0,
+  //                 "no \"quic_ssl_certificate\" is defined for "
+  //                 "the \"quic\".");
+  //   return NGX_CONF_ERROR;
+  // }
+  ngx_conf_merge_str_value(conf->certificate, prev->certificate, "");
+
+  
+  // if (conf->certificate_key.len == 0) {
+  //   ngx_log_error(NGX_LOG_EMERG, cf->log, 0,
+  //                 "no \"quic_ssl_certificate_key\" is defined for "
+  //                 "the \"quic\".");
+  //   return NGX_CONF_ERROR;
+  // }
+  ngx_conf_merge_str_value(conf->certificate_key, prev->certificate_key, "");
+
+
+  ngx_conf_merge_value(conf->bbr, prev->bbr, 0);
+  
+  ngx_conf_merge_size_value(conf->flush_interval, prev->flush_interval, 40);
+
+  
+  return NGX_CONF_OK;
+}
+
+
+
+
+static ngx_int_t
+ngx_http_quic_check_all_location(ngx_http_location_tree_node_t *node)
+{
+  ngx_http_core_loc_conf_t        *clcf;
+
+  if (!node) {
+    return NGX_OK;
+  }
+
+  clcf = node->inclusive;
+  if (clcf) {
+    if (clcf->sendfile) {
+      return NGX_ERROR;
+    }
+  }
+
+  if (ngx_http_quic_check_all_location(node->tree) != NGX_OK) {
+    return NGX_ERROR;
+  }
+  
+  if (ngx_http_quic_check_all_location(node->left) != NGX_OK) {
+    return NGX_ERROR;
+  }
+
+  return ngx_http_quic_check_all_location(node->right);
+}
+
+
+static ngx_int_t
+ngx_http_quic_check_and_rewrite_handler(ngx_cycle_t *cycle,
+                                  ngx_listening_t *ls,
+                                  ngx_http_addr_conf_t *conf)
+{
+  ngx_http_core_loc_conf_t        *clcf;
+  
+  if (conf->quic) {
+    if (conf->ssl) {
+      ngx_log_error(NGX_LOG_CRIT, cycle->log, 0,
+                    "gquic and ssl cannot be used together");
+      return NGX_ERROR;
+    }
+
+    if (conf->http2) {
+      ngx_log_error(NGX_LOG_CRIT, cycle->log, 0,
+                    "gquic and http2 cannot be used together");
+      return NGX_ERROR;
+    }
+
+    clcf = ngx_http_conf_get_module_loc_conf(conf->default_server,
+                                             ngx_http_core_module);
+    if (clcf->sendfile) {
+      ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
+                      "Not support sendfile, when used quic.");
+      return NGX_ERROR;
+    }
+
+    if (ngx_http_quic_check_all_location(clcf->static_locations) != NGX_OK) {
+      ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
+                    "Not support sendfile, when used quic.");
+      return NGX_ERROR;
+    }
+    
+
+    // rewrite ls[i]->handler
+    ls->handler = ngx_http_quic_handler_buf_by_quic;
+  }
+  
+  return NGX_OK;
+}
+
+static void
+ngx_do_quic_interval(ngx_event_t *ev) {
+
+  ngx_http_quic_context_t         *quic_ctx;
+
+  quic_ctx = ev->data;
+    
+  if (ngx_quit || ngx_exiting) {
+    if (quic_ctx->chromium_server) {
+      ngx_shutdown_quic(quic_ctx->chromium_server);
+      ngx_free_quic(quic_ctx->chromium_server);
+      quic_ctx->chromium_server = NULL;
+    }
+    return;
+  }
+
+
+  if (ngx_flush_cache_packets(quic_ctx->chromium_server) == NGX_AGAIN &&
+      quic_ctx->lc) {
+    ngx_add_event(quic_ctx->lc->write, NGX_WRITE_EVENT, NGX_LEVEL_EVENT);
+  }
+  
+  ngx_add_timer(ev, quic_ctx->flush_interval);
+}
