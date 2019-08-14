@@ -27,7 +27,8 @@ ngx_http_quic_check_and_rewrite_handler(ngx_cycle_t *cycle,
                                   ngx_listening_t *ls,
                                   ngx_http_addr_conf_t *conf);
 static void ngx_do_quic_interval(ngx_event_t *ev);
-
+static ngx_int_t ngx_http_variable_quic_scheme(ngx_http_request_t *r,
+                       ngx_http_variable_value_t *v, uintptr_t data);
 
 
 
@@ -97,10 +98,49 @@ ngx_module_t  ngx_http_quic_module = {
 };
 
 
+static ngx_http_variable_t  ngx_http_quic_vars[] = {
+
+  // { ngx_string("scheme"),NULL,ngx_http_variable_quic_scheme,0,0,0 },
+  
+  ngx_http_null_variable
+};
+
 
 static ngx_int_t
 ngx_http_quic_add_variables(ngx_conf_t *cf)
 {
+  ngx_http_variable_t        *var, *v;
+  ngx_http_core_main_conf_t  *cmcf;
+  ngx_hash_key_t             *key;
+  ngx_uint_t                  i;
+  ngx_str_t                   scheme_name = ngx_string("scheme");
+
+  // we must reset scheme variable's get_handler = ngx_http_variable_quic_scheme,
+  cmcf = ngx_http_conf_get_module_main_conf(cf, ngx_http_core_module);
+
+  key = cmcf->variables_keys->keys.elts;
+  for (i = 0; i < cmcf->variables_keys->keys.nelts; i++) {
+    if (scheme_name.len != key[i].key.len
+        || ngx_strncasecmp(scheme_name.data, key[i].key.data, scheme_name.len) != 0)
+    {
+      continue;
+    }
+
+    v = key[i].value;
+    v->get_handler = ngx_http_variable_quic_scheme;
+    break;
+  }
+  
+  
+  for (v = ngx_http_quic_vars; v->name.len; v++) {
+    var = ngx_http_add_variable(cf, &v->name, v->flags);
+    if (var == NULL) {
+      return NGX_ERROR;
+    }
+
+    var->get_handler = v->get_handler;
+    var->data = v->data;
+  }
 
   return NGX_OK;
 }
@@ -517,3 +557,42 @@ ngx_do_quic_interval(ngx_event_t *ev) {
   
   ngx_add_timer(ev, quic_ctx->flush_interval);
 }
+
+
+static ngx_int_t
+ngx_http_variable_quic_scheme(ngx_http_request_t *r,
+                 ngx_http_variable_value_t *v, uintptr_t data)
+{
+  if (r->connection->quic_stream) {
+    v->len = sizeof("quic") - 1;
+    v->valid = 1;
+    v->no_cacheable = 0;
+    v->not_found = 0;
+    v->data = (u_char *) "quic";
+
+    return NGX_OK;
+  }
+  
+#if (NGX_HTTP_SSL)
+
+  if (r->connection->ssl) {
+    v->len = sizeof("https") - 1;
+    v->valid = 1;
+    v->no_cacheable = 0;
+    v->not_found = 0;
+    v->data = (u_char *) "https";
+
+    return NGX_OK;
+  }
+
+  #endif
+
+  v->len = sizeof("http") - 1;
+  v->valid = 1;
+  v->no_cacheable = 0;
+  v->not_found = 0;
+  v->data = (u_char *) "http";
+
+  return NGX_OK;
+}
+
