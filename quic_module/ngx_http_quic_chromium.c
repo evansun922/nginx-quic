@@ -135,7 +135,6 @@ ngx_http_quic_request_quic_2_ngx_in_chromium(void* ngx_connection,
   ngx_listening_t           *ls;
   ngx_connection_t          *c, *lc;
 
-  // ngx_event_handler_pt      save_wev_handler;
 
   ngx_pool_cleanup_t        *cln;
   ngx_udp_connection_t      *udp;
@@ -289,14 +288,6 @@ ngx_http_quic_request_quic_2_ngx_in_chromium(void* ngx_connection,
   c->udp->buffer = buf;
   c->buffer = buf;
   
-  // // Avoid rev and wev joining the listening event of epoll
-  // rev->ready = 1;
-  // rev->active = 1;
-
-  // wev->ready = 1;
-  // wev->active = 1;
-
-  // save_wev_handler = wev->handler;
   c->quic_stream = quic_stream;
   ngx_set_nc_for_quic_stream(quic_stream, c);
 
@@ -304,22 +295,7 @@ ngx_http_quic_request_quic_2_ngx_in_chromium(void* ngx_connection,
   // Forge a tcp socket for upstream, limit-rate, api of tcp
   c->fd = ngx_socket(ls->sockaddr->sa_family, SOCK_STREAM, 0);
 
-  // // avoid to call api of tcp
-  // c->tcp_nopush = NGX_TCP_NOPUSH_DISABLED;
-  // c->tcp_nodelay = NGX_TCP_NODELAY_DISABLED;
-  
   ls->handler(c);
-
-
-  // if (c->udp) {
-  //   // c still is alive, in case limit-rate, upstream etc.
-  //   // if save_wev_handler != wev->handler add a timer for upstream
-  //   if (!wev->timer_set && save_wev_handler != wev->handler) {
-  //     ngx_add_timer(wev, 1);
-  //     wev->timer_set = 1;
-  //   }
-  // }
-
 }
 
 
@@ -349,8 +325,6 @@ ngx_http_quic_AddNgxTimer(void *module_context,
   ca->ev.data          = ca;
   ngx_add_timer(&ca->ev, delay);
   ca->ev.timer_set = 1;
-  // printf("AAAAAAAAAAAAAAAAAAAAAAA add ngx timer for chromium, ca:%p, delay:%ld\n",
-  //        ca, delay);
   return ca;
 }
 
@@ -367,7 +341,6 @@ ngx_http_quic_DelNgxTimer(void *module_context, void *ngx_timer)
     ngx_del_timer(&ca->ev);
   }
   ngx_pfree(quic_cxt->pool, ca);
-  // printf("AAAAAAAAAAAAAAAAAAAAAAA del ngx timer for chromium, ca:%p\n", ca);
 }
 
 
@@ -443,8 +416,6 @@ ngx_quic_send_chain(ngx_connection_t *c, ngx_chain_t *in, off_t limit)
     c->sent += size;
     send += size;
     in->buf->pos = in->buf->pos + size;
-
-    // printf("KKKKKKKKKKKKKKKKKKKKKKKK sent:%lu, size:%lu\n", c->sent, size);
 
     if (send >= limit) {
       break;
