@@ -1,0 +1,199 @@
+diff -ru src/core/ngx_connection.h src-quic/core/ngx_connection.h
+--- src/core/ngx_connection.h	2018-12-04 22:52:24.000000000 +0800
++++ src-quic/core/ngx_connection.h	2019-08-14 15:08:43.838982716 +0800
+@@ -189,6 +189,11 @@
+ #if (NGX_THREADS || NGX_COMPAT)
+     ngx_thread_task_t  *sendfile_task;
+ #endif
++
++#if NGX_G_QUIC
++    void                *quic_stream;
++    ngx_udp_connection_t  *udp;
++#endif
+ };
+ 
+ 
+diff -ru src/core/ngx_core.h src-quic/core/ngx_core.h
+--- src/core/ngx_core.h	2018-12-04 22:52:24.000000000 +0800
++++ src-quic/core/ngx_core.h	2019-08-14 15:08:43.838982716 +0800
+@@ -27,6 +27,9 @@
+ typedef struct ngx_thread_task_s     ngx_thread_task_t;
+ typedef struct ngx_ssl_s             ngx_ssl_t;
+ typedef struct ngx_ssl_connection_s  ngx_ssl_connection_t;
++#if NGX_G_QUIC
++typedef struct ngx_udp_connection_s  ngx_udp_connection_t;
++#endif
+ 
+ typedef void (*ngx_event_handler_pt)(ngx_event_t *ev);
+ typedef void (*ngx_connection_handler_pt)(ngx_connection_t *c);
+diff -ru src/http/ngx_http.c src-quic/http/ngx_http.c
+--- src/http/ngx_http.c	2018-12-04 22:52:24.000000000 +0800
++++ src-quic/http/ngx_http.c	2019-08-14 15:08:43.830982716 +0800
+@@ -1147,6 +1147,11 @@
+     ngx_http_conf_port_t       *port;
+     ngx_http_core_main_conf_t  *cmcf;
+ 
++#if NGX_G_QUIC
++    ngx_http_conf_addr_t       *addr;
++    ngx_uint_t                 ok,j;
++#endif
++
+     cmcf = ngx_http_conf_get_module_main_conf(cf, ngx_http_core_module);
+ 
+     if (cmcf->ports == NULL) {
+@@ -1167,6 +1172,21 @@
+             continue;
+         }
+ 
++#if NGX_G_QUIC
++        ok = 1;
++        for (j = 0; j < port[i].addrs.nelts; j++) {
++            addr = &port[i].addrs.elts[j];
++            if (lsopt->type == addr->opt.type) {
++                ok = 0;
++                break;
++            }
++        }
++
++        if (ok) {
++            continue;
++        }
++#endif
++
+         /* a port is already in the port list */
+ 
+         return ngx_http_add_addresses(cf, cscf, &port[i], lsopt);
+@@ -1772,6 +1792,10 @@
+     ls->reuseport = addr->opt.reuseport;
+ #endif
+ 
++#if NGX_G_QUIC
++    ls->type = addr->opt.type;
++#endif
++
+     return ls;
+ }
+ 
+@@ -1804,6 +1828,9 @@
+ #if (NGX_HTTP_V2)
+         addrs[i].conf.http2 = addr[i].opt.http2;
+ #endif
++#if (NGX_G_QUIC)
++        addrs[i].conf.quic = addr[i].opt.quic;
++#endif
+         addrs[i].conf.proxy_protocol = addr[i].opt.proxy_protocol;
+ 
+         if (addr[i].hash.buckets == NULL
+@@ -1869,6 +1896,9 @@
+ #if (NGX_HTTP_V2)
+         addrs6[i].conf.http2 = addr[i].opt.http2;
+ #endif
++#if (NGX_G_QUIC)
++        addrs6[i].conf.quic = addr[i].opt.quic;
++#endif
+         addrs6[i].conf.proxy_protocol = addr[i].opt.proxy_protocol;
+ 
+         if (addr[i].hash.buckets == NULL
+diff -ru src/http/ngx_http_core_module.c src-quic/http/ngx_http_core_module.c
+--- src/http/ngx_http_core_module.c	2018-12-04 22:52:24.000000000 +0800
++++ src-quic/http/ngx_http_core_module.c	2019-08-14 15:08:43.830982716 +0800
+@@ -3783,6 +3783,9 @@
+ #if (NGX_HAVE_INET6)
+     lsopt.ipv6only = 1;
+ #endif
++#if NGX_G_QUIC
++    lsopt.type = SOCK_STREAM;
++#endif
+ 
+     (void) ngx_sock_ntop(&lsopt.sockaddr.sockaddr, lsopt.socklen, lsopt.addr,
+                          NGX_SOCKADDR_STRLEN, 1);
+@@ -3802,6 +3805,14 @@
+             continue;
+         }
+ 
++#if NGX_G_QUIC
++        if (ngx_strcmp(value[n].data, "quic") == 0) {
++          lsopt.quic = 1;
++          lsopt.type = SOCK_DGRAM;
++          continue;
++        }
++#endif
++
+ #if (NGX_HAVE_SETFIB)
+         if (ngx_strncmp(value[n].data, "setfib=", 7) == 0) {
+             lsopt.setfib = ngx_atoi(value[n].data + 7, value[n].len - 7);
+diff -ru src/http/ngx_http_core_module.h src-quic/http/ngx_http_core_module.h
+--- src/http/ngx_http_core_module.h	2018-12-04 22:52:24.000000000 +0800
++++ src-quic/http/ngx_http_core_module.h	2019-08-14 15:08:43.830982716 +0800
+@@ -102,6 +102,11 @@
+ #endif
+ 
+     u_char                     addr[NGX_SOCKADDR_STRLEN + 1];
++
++#if NGX_G_QUIC
++  int                       type;
++  unsigned                  quic:1;
++#endif
+ } ngx_http_listen_opt_t;
+ 
+ 
+@@ -236,6 +241,9 @@
+     unsigned                   ssl:1;
+     unsigned                   http2:1;
+     unsigned                   proxy_protocol:1;
++#if (NGX_G_QUIC)
++    unsigned                   quic:1;
++#endif
+ };
+ 
+ 
+diff -ru src/http/ngx_http_parse.c src-quic/http/ngx_http_parse.c
+--- src/http/ngx_http_parse.c	2018-12-04 22:52:24.000000000 +0800
++++ src-quic/http/ngx_http_parse.c	2019-08-14 15:08:43.830982716 +0800
+@@ -723,10 +723,15 @@
+             }
+ 
+             r->http_major = ch - '0';
+-
++#if NGX_G_QUIC
++            if (r->http_major > 3) {
++                return NGX_HTTP_PARSE_INVALID_VERSION;
++            }
++#else
+             if (r->http_major > 1) {
+                 return NGX_HTTP_PARSE_INVALID_VERSION;
+             }
++#endif // NGX_G_QUIC
+ 
+             state = sw_major_digit;
+             break;
+diff -ru src/http/ngx_http_request.c src-quic/http/ngx_http_request.c
+--- src/http/ngx_http_request.c	2018-12-04 22:52:24.000000000 +0800
++++ src-quic/http/ngx_http_request.c	2019-08-14 15:08:43.822982716 +0800
+@@ -3071,6 +3071,13 @@
+         }
+     }
+ 
++#if NGX_G_QUIC
++    if (c->quic_stream) {
++      ngx_http_close_connection(c);
++      return;
++    }
++#endif
++
+     c->log->action = "keepalive";
+ 
+     if (c->tcp_nopush == NGX_TCP_NOPUSH_SET) {
+diff -ru src/http/ngx_http_request.h src-quic/http/ngx_http_request.h
+--- src/http/ngx_http_request.h	2018-12-04 22:52:24.000000000 +0800
++++ src-quic/http/ngx_http_request.h	2019-08-14 15:08:43.822982716 +0800
+@@ -24,6 +24,9 @@
+ #define NGX_HTTP_VERSION_10                1000
+ #define NGX_HTTP_VERSION_11                1001
+ #define NGX_HTTP_VERSION_20                2000
++#if NGX_G_QUIC
++#define NGX_HTTP_VERSION_30                3000
++#endif
+ 
+ #define NGX_HTTP_UNKNOWN                   0x0001
+ #define NGX_HTTP_GET                       0x0002
