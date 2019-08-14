@@ -42,8 +42,8 @@ if __name__ == '__main__':
         sys.exit(0)
 
     quic_module_root        = os.getcwd()
-    nginx_root              = sys.argv[1]
-    chromium_root           = sys.argv[2]
+    nginx_root              = os.path.realpath(sys.argv[1])
+    chromium_root           = os.path.realpath(sys.argv[2])
     nginx_version           = 0
     nginx_args              = []
     patch_path              = ""
