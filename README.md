@@ -8,7 +8,7 @@
 The purpose of this project is to make nginx support quic and keep the original functions of nginx unchanged.
 this project requires nignx and chromium source code
 
-At present, this project had only been tested under the Linux kernel and epoll network, which requires Linux kernel 4.18.20-1. El6. Elrepo. X86_64 and above.
+At present, this project had only been tested under the Linux kernel and epoll network, which requires Linux kernel 4.18.20-1. El6. Elrepo. X86_64 and above, currently, nginx-quic only test on 1.14.2 and 1.16.0 version of nginx,  and nginx-1.16.0 and above is recommended.
 
 There is a compiled nginx-quic in bin,you can run it on centos, redhat, ubuntu, etc, the test nginx-quic's --prefix=/opt/nginx/.
 
