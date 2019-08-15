@@ -463,32 +463,32 @@ ngx_http_quic_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
 
 
 
-static ngx_int_t
-ngx_http_quic_check_all_location(ngx_http_location_tree_node_t *node)
-{
-  ngx_http_core_loc_conf_t        *clcf;
+// static ngx_int_t
+// ngx_http_quic_check_all_location(ngx_http_location_tree_node_t *node)
+// {
+//   ngx_http_core_loc_conf_t        *clcf;
 
-  if (!node) {
-    return NGX_OK;
-  }
+//   if (!node) {
+//     return NGX_OK;
+//   }
 
-  clcf = node->inclusive;
-  if (clcf) {
-    if (clcf->sendfile) {
-      return NGX_ERROR;
-    }
-  }
+//   clcf = node->inclusive;
+//   if (clcf) {
+//     if (clcf->sendfile) {
+//       return NGX_ERROR;
+//     }
+//   }
 
-  if (ngx_http_quic_check_all_location(node->tree) != NGX_OK) {
-    return NGX_ERROR;
-  }
+//   if (ngx_http_quic_check_all_location(node->tree) != NGX_OK) {
+//     return NGX_ERROR;
+//   }
   
-  if (ngx_http_quic_check_all_location(node->left) != NGX_OK) {
-    return NGX_ERROR;
-  }
+//   if (ngx_http_quic_check_all_location(node->left) != NGX_OK) {
+//     return NGX_ERROR;
+//   }
 
-  return ngx_http_quic_check_all_location(node->right);
-}
+//   return ngx_http_quic_check_all_location(node->right);
+// }
 
 
 static ngx_int_t
@@ -496,7 +496,7 @@ ngx_http_quic_check_and_rewrite_handler(ngx_cycle_t *cycle,
                                   ngx_listening_t *ls,
                                   ngx_http_addr_conf_t *conf)
 {
-  ngx_http_core_loc_conf_t        *clcf;
+  // ngx_http_core_loc_conf_t        *clcf;
   
   if (conf->quic) {
     if (conf->ssl) {
@@ -511,19 +511,19 @@ ngx_http_quic_check_and_rewrite_handler(ngx_cycle_t *cycle,
       return NGX_ERROR;
     }
 
-    clcf = ngx_http_conf_get_module_loc_conf(conf->default_server,
-                                             ngx_http_core_module);
-    if (clcf->sendfile) {
-      ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
-                      "Not support sendfile, when used quic.");
-      return NGX_ERROR;
-    }
+    // clcf = ngx_http_conf_get_module_loc_conf(conf->default_server,
+    //                                          ngx_http_core_module);
+    // if (clcf->sendfile) {
+    //   ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
+    //                   "Not support sendfile, when used quic.");
+    //   return NGX_ERROR;
+    // }
 
-    if (ngx_http_quic_check_all_location(clcf->static_locations) != NGX_OK) {
-      ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
-                    "Not support sendfile, when used quic.");
-      return NGX_ERROR;
-    }
+    // if (ngx_http_quic_check_all_location(clcf->static_locations) != NGX_OK) {
+    //   ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
+    //                 "Not support sendfile, when used quic.");
+    //   return NGX_ERROR;
+    // }
     
 
     // rewrite ls[i]->handler
