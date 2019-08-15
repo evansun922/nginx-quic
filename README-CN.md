@@ -7,7 +7,7 @@
 
 本项目是为了让nginx支持quic协议，并且保持nginx的原有功能不变。这个项目是将开源项目chromium中的quic部分集成到nginx中，所以需要nginx和chromium两个项目的源代码。
 
-目前此项目仅在linux内核下，epoll网络模型下进行过测试，需要linux内核4.18.20-1.el6.elrepo.x86_64以上。
+目前此项目仅在linux内核下，epoll网络模型下进行过测试，需要linux内核4.18.20-1.el6.elrepo.x86_64以上，推荐使用nginx-1.16.0以上的版本，目前只在1.14.2和1.16.0两个版本上测试。
 
 bin目录下提供了一个已经编译好的nginx-quic，大家可以在centos，redhat，ubuntu等版本中运行测试，nginx-quic的 --prefix=/opt/nginx/。
 
