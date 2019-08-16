@@ -27,6 +27,7 @@ typedef void(*DelNgxTimer)(void *module_context, void *ngx_timer);
   
 typedef void(*RequestHttpQuic2Ngx)(void* ngx_connection,
                                    void* quic_stream,
+                                   struct sockaddr_storage* self_addr,
                                    struct sockaddr_storage* peer_addr,
                                    const char *header,
                                    int header_len,

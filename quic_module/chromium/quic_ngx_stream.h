@@ -31,6 +31,8 @@ class QuicNgxStream : public QuicSimpleServerStream {
   void* get_ngx_connection() { return ngx_connection_; }
   std::string get_peer_ip();
   struct sockaddr_storage get_peer_address();
+    std::string get_self_ip();
+  struct sockaddr_storage get_self_address();
   
   // bool OnStreamFrameAcked(QuicStreamOffset offset,
   //                         QuicByteCount data_length,

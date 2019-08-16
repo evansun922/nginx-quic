@@ -17,6 +17,7 @@ struct ngx_udp_connection_s {
 
 static void ngx_http_quic_request_quic_2_ngx_in_chromium(void* ngx_connection,
                                              void *quic_stream,
+                                             struct sockaddr_storage* self_addr,
                                              struct sockaddr_storage* peer_addr,
                                              const char *header,
                                              int header_len,
@@ -121,6 +122,7 @@ ngx_http_quic_handler_buf_by_quic(ngx_connection_t *c)
 static void
 ngx_http_quic_request_quic_2_ngx_in_chromium(void* ngx_connection,
                                              void *quic_stream,
+                                             struct sockaddr_storage* self_addr,
                                              struct sockaddr_storage* peer_addr,
                                              const char *header,
                                              int header_len,
@@ -198,14 +200,15 @@ ngx_http_quic_request_quic_2_ngx_in_chromium(void* ngx_connection,
   c->listening = ls;
 
 
-  local_socklen = ls->socklen;
+  local_socklen = sizeof(struct sockaddr_storage); // ls->socklen;
   local_sockaddr = ngx_palloc(c->pool, local_socklen);
   if (local_sockaddr == NULL) {
     ngx_http_quic_close_accepted_udp_connection(c);
     return;
   }
 
-  ngx_memcpy(local_sockaddr, ls->sockaddr, local_socklen);
+  // ngx_memcpy(local_sockaddr, ls->sockaddr, local_socklen);
+  ngx_memcpy(local_sockaddr, (struct sockaddr *)self_addr, local_socklen);
     
 
   c->local_sockaddr = local_sockaddr;

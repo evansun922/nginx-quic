@@ -77,9 +77,11 @@ void QuicNgxBackend::FetchResponseFromBackend(
   QuicNgxStream* ngx_stream = reinterpret_cast<QuicNgxStream*>(
                               static_cast<QuicSimpleServerStream*>(quic_stream));
 
+  struct sockaddr_storage self_addr = ngx_stream->get_self_address();
   struct sockaddr_storage peer_addr = ngx_stream->get_peer_address();
   request_quic_2_ngx_(cur_ngx_connection_,
                       ngx_stream,
+                      &self_addr,
                       &peer_addr,
                       nr.c_str(), nr.length(),
                       request_body.c_str(), request_body.length());

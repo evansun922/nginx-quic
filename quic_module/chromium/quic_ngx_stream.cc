@@ -185,6 +185,14 @@ std::string QuicNgxStream::get_peer_ip() {
 struct sockaddr_storage QuicNgxStream::get_peer_address() {
   return session()->peer_address().generic_address();
 }
+
+std::string QuicNgxStream::get_self_ip() {
+  return session()->self_address().host().Normalized().ToString();
+}
+
+struct sockaddr_storage QuicNgxStream::get_self_address() {
+  return session()->self_address().generic_address();
+}
   
 // bool QuicNgxStream::OnStreamFrameAcked(QuicStreamOffset offset,
 //                                          QuicByteCount data_length,
