@@ -42,8 +42,10 @@ class QuicNgxServer {
                   int listen_fd,
                   int port,
                   int address_family,
+                  CreateNgxTimer create_ngx_timer,
                   AddNgxTimer add_ngx_timer,
-                  DelNgxTimer del_ngx_timer);
+                  DelNgxTimer del_ngx_timer,
+                  FreeNgxTimer free_ngx_timer);
 
   void ReadAndDispatchPackets(void* ngx_connection);
 
@@ -72,8 +74,10 @@ class QuicNgxServer {
 
   QuicDispatcher* CreateQuicDispatcher(
                      void* ngx_module_context,
+                     CreateNgxTimer create_ngx_timer,
                      AddNgxTimer add_ngx_timer,
-                     DelNgxTimer del_ngx_timer);
+                     DelNgxTimer del_ngx_timer,
+                     FreeNgxTimer free_ngx_timer);
 
   const QuicConfig& config() const { return config_; }
   const QuicCryptoServerConfig& crypto_config() const { return crypto_config_; }

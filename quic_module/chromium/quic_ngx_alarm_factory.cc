@@ -14,14 +14,14 @@ class QuicNgxAlarm : public QuicAlarm {
                QuicArenaScopedPtr<QuicAlarm::Delegate> delegate)
                : QuicAlarm(std::move(delegate)),
                  ngx_handle_(*ngx_handle),
-                 ngx_event_(nullptr){}
+                 ngx_timer_(nullptr){}
   
   ~QuicNgxAlarm() override {
-    if (ngx_event_) {
+    if (ngx_timer_) {
       ngx_handle_.del_ngx_timer(ngx_handle_.ngx_module_context,
-                                 ngx_event_);
-      // ::free(ngx_event_);
-      ngx_event_ = nullptr;
+                                 ngx_timer_);
+      ngx_handle_.free_ngx_timer(ngx_timer_);
+      ngx_timer_ = nullptr;
     }
   }
 
@@ -33,10 +33,13 @@ class QuicNgxAlarm : public QuicAlarm {
  protected:
   void SetImpl() override {
     DCHECK(deadline().IsInitialized());
-    if (ngx_event_) {
+    if (ngx_timer_ == nullptr) {
+      ngx_timer_ = ngx_handle_.create_ngx_timer(ngx_handle_.ngx_module_context,
+                                                this,
+                                                QuicNgxAlarm::OnAlarm);
+    } else {
       ngx_handle_.del_ngx_timer(ngx_handle_.ngx_module_context,
-                                 ngx_event_);
-      // ::free(ngx_event_);
+                                ngx_timer_);
     }
     int64_t now_in_us = (clock_.Now() - QuicTime::Zero()).ToMicroseconds();
     int64_t time_offset = (deadline() - QuicTime::Zero()).ToMicroseconds();
@@ -44,20 +47,16 @@ class QuicNgxAlarm : public QuicAlarm {
     if (wait_time_in_us < 0 ) {
       wait_time_in_us = 0;
     }
-    ngx_event_ = ngx_handle_.add_ngx_timer(
-                       ngx_handle_.ngx_module_context,
-                       this,
-                       wait_time_in_us / 1000,
-                       QuicNgxAlarm::OnAlarm);
+    ngx_handle_.add_ngx_timer(ngx_handle_.ngx_module_context,
+                              ngx_timer_,
+                              wait_time_in_us / 1000);
   }
 
   void CancelImpl() override {
     DCHECK(!deadline().IsInitialized());
-    if (ngx_event_) {
+    if (ngx_timer_) {
       ngx_handle_.del_ngx_timer(ngx_handle_.ngx_module_context,
-                                 ngx_event_);
-      // ::free(ngx_event_);
-      ngx_event_ = nullptr;
+                                 ngx_timer_);
     }
   }
 
@@ -68,18 +67,22 @@ class QuicNgxAlarm : public QuicAlarm {
  private:
 
   QuicNgxHandle ngx_handle_;
-  void* ngx_event_; // nginx ngx_event_t
+  void* ngx_timer_; // nginx ngx_event_t
   QuicChromiumClock clock_;
 };
 
 }  // namespace
 
 QuicNgxAlarmFactory::QuicNgxAlarmFactory(void* ngx_module_context,
+                                         CreateNgxTimer create_ngx_timer,
                                          AddNgxTimer add_ngx_timer,
-                                         DelNgxTimer del_ngx_timer) {
+                                         DelNgxTimer del_ngx_timer,
+                                         FreeNgxTimer free_ngx_timer) {
   ngx_handle_.ngx_module_context = ngx_module_context;
+  ngx_handle_.create_ngx_timer = create_ngx_timer;
   ngx_handle_.add_ngx_timer = add_ngx_timer;
   ngx_handle_.del_ngx_timer = del_ngx_timer;
+  ngx_handle_.free_ngx_timer = free_ngx_timer;
 }
 
 QuicNgxAlarmFactory::~QuicNgxAlarmFactory() = default;

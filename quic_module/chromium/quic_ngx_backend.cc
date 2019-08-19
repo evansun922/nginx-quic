@@ -36,11 +36,10 @@ void QuicNgxBackend::FetchResponseFromBackend(
     const std::string& request_body,
     QuicSimpleServerBackend::RequestHandler* quic_stream) {
 
-  for (auto it = request_headers.begin(); it != request_headers.end(); ++it) {
-    std::string v = it->first.as_string() + ": " + it->second.as_string();
-    printf("%s\n", v.c_str());
-    // LOG(INFO) << it->first.as_string() << ": " << it->second.as_string();
-  }
+  // for (auto it = request_headers.begin(); it != request_headers.end(); ++it) {
+  //   std::string v = it->first.as_string() + ": " + it->second.as_string();
+  //   LOG(INFO) << it->first.as_string() << ": " << it->second.as_string();
+  // }
 
   std::ostringstream ngx_request_header;
   auto it = request_headers.find(":method");
@@ -72,7 +71,7 @@ void QuicNgxBackend::FetchResponseFromBackend(
   ngx_request_header << "\r\n";
 
   std::string nr = ngx_request_header.str();
-  printf("%s\n", nr.c_str());
+  // printf("%s\n", nr.c_str());
 
   QuicNgxStream* ngx_stream = reinterpret_cast<QuicNgxStream*>(
                               static_cast<QuicSimpleServerStream*>(quic_stream));

@@ -18,12 +18,17 @@ typedef void(*OnChromiumAlarm)(void *chromium_alarm);
 /*
  *  call in quic
  */
-typedef void*(*AddNgxTimer)(void *module_context,
-                            void *chromium_alarm,
-                            int64_t delay,
-                            OnChromiumAlarm onChromiumAlarm);
+typedef void*(*CreateNgxTimer)(void *module_context,
+                              void *chromium_alarm,
+                              OnChromiumAlarm onChromiumAlarm);
+  
+typedef void(*AddNgxTimer)(void *module_context,
+                           void *ngx_timer,
+                           int64_t delay);
   
 typedef void(*DelNgxTimer)(void *module_context, void *ngx_timer);
+
+typedef void(*FreeNgxTimer)(void *ngx_timer);
   
 typedef void(*RequestHttpQuic2Ngx)(void* ngx_connection,
                                    void* quic_stream,
@@ -43,8 +48,10 @@ void* ngx_init_quic(void* ngx_module_context,
                     int listen_fd,
                     int port,
                     int address_family,
+                    CreateNgxTimer create_ngx_timer,
                     AddNgxTimer add_ngx_timer,
                     DelNgxTimer del_ngx_timer,
+                    FreeNgxTimer free_ngx_timer,
                     RequestHttpQuic2Ngx req_quic_2_ngx,
                     SetStreamForNgx set_stream_for_ngx,
                     const char* certificate_file,

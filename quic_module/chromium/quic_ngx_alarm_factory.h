@@ -11,16 +11,20 @@ namespace quic {
 
 struct QuicNgxHandle {
   void* ngx_module_context;
+  CreateNgxTimer create_ngx_timer;
   AddNgxTimer add_ngx_timer;
   DelNgxTimer del_ngx_timer;
+  FreeNgxTimer free_ngx_timer;
 };
   
 // Creates alarms that use the supplied Nginx for timing and firing.
 class QuicNgxAlarmFactory : public QuicAlarmFactory {
  public:
   explicit QuicNgxAlarmFactory(void* ngx_module_context,
+                               CreateNgxTimer create_ngx_timer,
                                AddNgxTimer add_ngx_timer,
-                               DelNgxTimer del_ngx_timer);
+                               DelNgxTimer del_ngx_timer,
+                               FreeNgxTimer free_ngx_timer);
   QuicNgxAlarmFactory(const QuicNgxAlarmFactory&) = delete;
   QuicNgxAlarmFactory& operator=(const QuicNgxAlarmFactory&) = delete;
   ~QuicNgxAlarmFactory() override;

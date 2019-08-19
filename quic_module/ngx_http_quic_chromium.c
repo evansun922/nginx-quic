@@ -23,11 +23,14 @@ static void ngx_http_quic_request_quic_2_ngx_in_chromium(void* ngx_connection,
                                              int header_len,
                                              const char *body,
                                              int body_len);
-static void* ngx_http_quic_AddNgxTimer(void *module_context,
-                                       void *chromium_alarm,
-                                       int64_t delay,
-                                       OnChromiumAlarm onChromiumAlarm);
+static void* ngx_http_quic_CreateNgxTimer(void *module_context,
+                                          void *chromium_alarm,
+                                          OnChromiumAlarm onChromiumAlarm);
+static void ngx_http_quic_AddNgxTimer(void *module_context,
+                                      void *ngx_timer,
+                                      int64_t delay);
 static void ngx_http_quic_DelNgxTimer(void *module_context, void *ngx_timer);
+static void ngx_http_quic_FreeNgxTimer(void *ngx_timer);
 static ngx_chain_t *ngx_quic_send_chain(ngx_connection_t *c, ngx_chain_t *in, off_t limit);
 static ssize_t ngx_quic_shared_recv(ngx_connection_t *c, u_char *buf, size_t size);
 static void ngx_http_quic_set_stream_for_connection(void* ngx_request, void* quic_stream);
@@ -49,8 +52,10 @@ ngx_http_quic_init_chromium(ngx_http_quic_context_t *module_context,
                        listen_fd,
                        port,
                        address_family,
+                       ngx_http_quic_CreateNgxTimer,
                        ngx_http_quic_AddNgxTimer,
                        ngx_http_quic_DelNgxTimer,
+                       ngx_http_quic_FreeNgxTimer,
                        ngx_http_quic_request_quic_2_ngx_in_chromium,
                        ngx_http_quic_set_stream_for_connection,
                        (char*)certificate->data,
@@ -311,25 +316,39 @@ ngx_do_chromium_alarm(ngx_event_t *ev)
 
 
 static void*
-ngx_http_quic_AddNgxTimer(void *module_context,
-                          void *chromium_alarm,
-                          int64_t delay,
-                          OnChromiumAlarm onChromiumAlarm)
+ngx_http_quic_CreateNgxTimer(void *module_context,
+                            void *chromium_alarm,
+                            OnChromiumAlarm onChromiumAlarm)
 {
   ngx_http_quic_context_t *quic_cxt;
   chromium_alarm_t        *ca;
 
-  quic_cxt             = module_context;
-  // ca                   = ngx_pcalloc(quic_cxt->pool, sizeof(chromium_alarm_t));
-  ca                   = ngx_calloc(sizeof(chromium_alarm_t), quic_cxt->pool->log);
+  quic_cxt = module_context;
+  ca       = ngx_calloc(sizeof(chromium_alarm_t), quic_cxt->pool->log);
+
   ca->chromium_alarm   = chromium_alarm;
   ca->onChromiumAlarm  = onChromiumAlarm;
   ca->ev.handler       = ngx_do_chromium_alarm;
   ca->ev.log           = quic_cxt->pool->log;
   ca->ev.data          = ca;
+  
+  return ca;
+}
+
+
+static void
+ngx_http_quic_AddNgxTimer(void *module_context,
+                          void *ngx_timer,
+                          int64_t delay)
+{
+  ngx_http_quic_context_t *quic_cxt;
+  chromium_alarm_t        *ca;
+
+  quic_cxt             = module_context;
+  ca                   = ngx_timer;
+  ca->ev.log           = quic_cxt->pool->log;
   ngx_add_timer(&ca->ev, delay);
   ca->ev.timer_set = 1;
-  return ca;
 }
 
 
@@ -344,8 +363,13 @@ ngx_http_quic_DelNgxTimer(void *module_context, void *ngx_timer)
   if (ca->ev.timer_set == 1) {
     ngx_del_timer(&ca->ev);
   }
-  // ngx_pfree(quic_cxt->pool, ca);
-  ngx_free(ca);
+}
+
+
+static void
+ngx_http_quic_FreeNgxTimer(void *ngx_timer)
+{
+  ngx_free(ngx_timer);
 }
 
 

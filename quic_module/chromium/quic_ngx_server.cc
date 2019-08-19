@@ -80,8 +80,10 @@ void QuicNgxServer::Initialize(void* ngx_module_context,
                                int listen_fd,
                                int port,
                                int address_family,
+                               CreateNgxTimer create_ngx_timer,
                                AddNgxTimer add_ngx_timer,
-                               DelNgxTimer del_ngx_timer) {
+                               DelNgxTimer del_ngx_timer,
+                               FreeNgxTimer free_ngx_timer) {
   // If an initial flow control window has not explicitly been set, then use a
   // sensible value for a server: 1 MB for session, 64 KB for each stream.
   const uint32_t kInitialSessionFlowControlWindow = 1 * 1024 * 1024;  // 1 MB
@@ -132,8 +134,10 @@ void QuicNgxServer::Initialize(void* ngx_module_context,
   } while(false);
 
   dispatcher_.reset(CreateQuicDispatcher(ngx_module_context,
+                                         create_ngx_timer,
                                          add_ngx_timer,
-                                         del_ngx_timer));
+                                         del_ngx_timer,
+                                         free_ngx_timer));
   dispatcher_->InitializeWithWriter(CreateWriter(fd_));
 }
 
@@ -144,15 +148,21 @@ QuicPacketWriter* QuicNgxServer::CreateWriter(int fd) {
 }
 
 QuicDispatcher* QuicNgxServer::CreateQuicDispatcher(void* ngx_module_context,
+                                                    CreateNgxTimer create_ngx_timer,
                                                     AddNgxTimer add_ngx_timer,
-                                                    DelNgxTimer del_ngx_timer) {
+                                                    DelNgxTimer del_ngx_timer,
+                                                    FreeNgxTimer free_ngx_timer) {
   return new QuicNgxDispatcher(
       &config_, &crypto_config_, &version_manager_,
       std::unique_ptr<quic::QuicConnectionHelperInterface>(helper_),
       std::unique_ptr<QuicCryptoServerStream::Helper>(
           new QuicSimpleCryptoServerStreamHelper(QuicRandom::GetInstance())),
       std::unique_ptr<QuicAlarmFactory>(
-         new QuicNgxAlarmFactory(ngx_module_context, add_ngx_timer, del_ngx_timer)),
+         new QuicNgxAlarmFactory(ngx_module_context,
+                                 create_ngx_timer,
+                                 add_ngx_timer,
+                                 del_ngx_timer,
+                                 free_ngx_timer)),
       quic_ngx_server_backend_, expected_connection_id_length_);
 }
 

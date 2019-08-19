@@ -26,8 +26,10 @@ void* ngx_init_quic(void* ngx_module_context,
                     int listen_fd,
                     int port,
                     int address_family,
+                    CreateNgxTimer create_ngx_timer,
                     AddNgxTimer add_ngx_timer,
                     DelNgxTimer del_ngx_timer,
+                    FreeNgxTimer free_ngx_timer,
                     RequestHttpQuic2Ngx req_quic_2_ngx,
                     SetStreamForNgx set_stream_for_ngx,
                     const char* certificate_file,
@@ -85,8 +87,10 @@ void* ngx_init_quic(void* ngx_module_context,
                      listen_fd,
                      port,
                      address_family,
+                     create_ngx_timer,
                      add_ngx_timer,
-                     del_ngx_timer);
+                     del_ngx_timer,
+                     free_ngx_timer);
   return server;
 }
 
