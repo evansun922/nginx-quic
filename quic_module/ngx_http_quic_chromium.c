@@ -320,7 +320,8 @@ ngx_http_quic_AddNgxTimer(void *module_context,
   chromium_alarm_t        *ca;
 
   quic_cxt             = module_context;
-  ca                   = ngx_pcalloc(quic_cxt->pool, sizeof(chromium_alarm_t));
+  // ca                   = ngx_pcalloc(quic_cxt->pool, sizeof(chromium_alarm_t));
+  ca                   = ngx_calloc(sizeof(chromium_alarm_t), quic_cxt->pool->log);
   ca->chromium_alarm   = chromium_alarm;
   ca->onChromiumAlarm  = onChromiumAlarm;
   ca->ev.handler       = ngx_do_chromium_alarm;
@@ -343,7 +344,8 @@ ngx_http_quic_DelNgxTimer(void *module_context, void *ngx_timer)
   if (ca->ev.timer_set == 1) {
     ngx_del_timer(&ca->ev);
   }
-  ngx_pfree(quic_cxt->pool, ca);
+  // ngx_pfree(quic_cxt->pool, ca);
+  ngx_free(ca);
 }
 
 
