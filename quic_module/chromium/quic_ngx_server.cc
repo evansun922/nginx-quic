@@ -37,12 +37,14 @@ const char kSourceAddressTokenSecret[] = "secret";
 const size_t kNumSessionsToCreatePerSocketEvent = 16;
 
 QuicNgxServer::QuicNgxServer(std::unique_ptr<ProofSource> proof_source,
-                       QuicNgxBackend* quic_ngx_server_backend)
+                             QuicNgxBackend* quic_ngx_server_backend,
+                             int idle_network_timeout)
   : QuicNgxServer(std::move(proof_source),
                   QuicConfig(),
                   QuicCryptoServerConfig::ConfigOptions(),
                   AllSupportedVersions(),
                   quic_ngx_server_backend,
+                  idle_network_timeout,
                   kQuicDefaultConnectionIdLength) {}
 
 QuicNgxServer::QuicNgxServer(
@@ -51,6 +53,7 @@ QuicNgxServer::QuicNgxServer(
     const QuicCryptoServerConfig::ConfigOptions& crypto_config_options,
     const ParsedQuicVersionVector& supported_versions,
     QuicNgxBackend* quic_ngx_server_backend,
+    int idle_network_timeout,
     uint8_t expected_connection_id_length)
   : port_(0),
     fd_(-1),
@@ -70,8 +73,11 @@ QuicNgxServer::QuicNgxServer(
     helper_(new net::QuicChromiumConnectionHelper(&clock_,
             quic::QuicRandom::GetInstance())),
     writer_(nullptr),
-  ngx_module_context_(nullptr) {
-
+    ngx_module_context_(nullptr) {
+  if (-1 != idle_network_timeout) {
+    config_.SetIdleNetworkTimeout(QuicTime::Delta::FromSeconds(idle_network_timeout),
+                                  QuicTime::Delta::FromSeconds(idle_network_timeout/2));
+  }
 }
 
 QuicNgxServer::~QuicNgxServer() = default;

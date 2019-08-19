@@ -46,7 +46,8 @@ ngx_http_quic_init_chromium(ngx_http_quic_context_t *module_context,
                             int address_family,
                             ngx_str_t *certificate,
                             ngx_str_t *certificate_key,
-                            int bbr)
+                            int bbr,
+                            int idle_network_timeout)
 {  
   return ngx_init_quic(module_context,
                        listen_fd,
@@ -60,7 +61,8 @@ ngx_http_quic_init_chromium(ngx_http_quic_context_t *module_context,
                        ngx_http_quic_set_stream_for_connection,
                        (char*)certificate->data,
                        (char*)certificate_key->data,
-                       bbr);
+                       bbr,
+                       idle_network_timeout);
 }
 
 

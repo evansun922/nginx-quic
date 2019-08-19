@@ -116,6 +116,12 @@ Syntax:          quic_flush_interval     number;
 Default:         quic_flush_interval     40;
 Context:        http,  server,   location
 the buffered of sendmmsg is refreshed every "number" milliseconds.
+
+
+Syntax:          quic_idle_network_timeout     time;
+Default:         quic_idle_network_timeout     10m;
+Context:        http,  server,   location
+Idle network timeout in seconds.
 ```
 
 ## Author

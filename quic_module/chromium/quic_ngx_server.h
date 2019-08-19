@@ -25,12 +25,14 @@ class QuicNgxPacketWriter;
 class QuicNgxServer {
  public:
   QuicNgxServer(std::unique_ptr<ProofSource> proof_source,
-                QuicNgxBackend* quic_ngx_server_backend);
+                QuicNgxBackend* quic_ngx_server_backend,
+                int idle_network_timeout);
   QuicNgxServer(std::unique_ptr<ProofSource> proof_source,
                 const QuicConfig& config,
                 const QuicCryptoServerConfig::ConfigOptions& server_config_options,
                 const ParsedQuicVersionVector& supported_versions,
                 QuicNgxBackend* quic_ngx_server_backend,
+                int idle_network_timeout,
                 uint8_t expected_connection_id_length);
   QuicNgxServer(const QuicNgxServer&) = delete;
   QuicNgxServer& operator=(const QuicNgxServer&) = delete;

@@ -114,6 +114,12 @@ Syntax:          quic_flush_interval     number;
 Default:         quic_flush_interval     40;
 Context:        http,  server,   location
 间隔多少毫秒刷新一次系统调用sendmmsg的缓冲输出。
+
+
+Syntax:          quic_idle_network_timeout     time;
+Default:         quic_idle_network_timeout     10m;
+Context:        http,  server,   location
+客户端网络空闲超时时间，默认10分钟。
 ```
 
 ## 作者

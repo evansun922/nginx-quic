@@ -19,6 +19,7 @@ typedef struct {
   ngx_str_t                 certificate_key;
   ngx_flag_t                bbr;
   size_t                    flush_interval;  // millisecond
+  time_t                    idle_network_timeout; // seconds
 } ngx_http_quic_srv_conf_t;
 
 

@@ -34,7 +34,8 @@ void* ngx_init_quic(void* ngx_module_context,
                     SetStreamForNgx set_stream_for_ngx,
                     const char* certificate_file,
                     const char* key_file,
-                    int bbr) {
+                    int bbr,
+                    int idle_network_timeout) {
   // base::AtExitManager exit_manager;
   
   int quic_argc = 0;
@@ -82,7 +83,9 @@ void* ngx_init_quic(void* ngx_module_context,
   backend->InitializeBackend("");
   backend->set_ngx_args(req_quic_2_ngx, set_stream_for_ngx);
   quic::QuicNgxServer* server =
-    new quic::QuicNgxServer(quic::CreateDefaultProofSource(), backend);
+    new quic::QuicNgxServer(quic::CreateDefaultProofSource(),
+                            backend,
+                            idle_network_timeout);
   server->Initialize(ngx_module_context,
                      listen_fd,
                      port,
