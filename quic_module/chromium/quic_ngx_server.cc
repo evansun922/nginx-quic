@@ -1,4 +1,8 @@
 
+/*
+ * Copyright (C) sunlei
+ */
+
 #include "quic_ngx_server.h"
 
 #include <errno.h>

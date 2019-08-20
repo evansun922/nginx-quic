@@ -1,3 +1,8 @@
+
+/*
+ * Copyright (C) sunlei
+ */
+
 #include "quic_ngx_packet_writer.h"
 
 namespace quic {

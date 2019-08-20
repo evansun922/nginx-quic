@@ -1,3 +1,8 @@
+
+/*
+ * Copyright (C) sunlei
+ */
+
 #ifndef QUICHE_QUIC_NGX_PACKET_READER_H_
 #define QUICHE_QUIC_NGX_PACKET_READER_H_
 

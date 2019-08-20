@@ -1,4 +1,8 @@
 
+/*
+ * Copyright (C) sunlei
+ */
+
 #ifndef QUICHE_QUIC_QUIC_NGX_SERVER_H_
 #define QUICHE_QUIC_QUIC_NGX_SERVER_H_
 

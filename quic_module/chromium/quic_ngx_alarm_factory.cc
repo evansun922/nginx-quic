@@ -1,4 +1,8 @@
 
+/*
+ * Copyright (C) sunlei
+ */
+
 #include <type_traits>
 #include "quic_ngx_alarm_factory.h"
 #include "net/third_party/quiche/src/quic/core/quic_arena_scoped_ptr.h"

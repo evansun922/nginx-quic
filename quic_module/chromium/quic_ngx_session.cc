@@ -1,3 +1,8 @@
+
+/*
+ * Copyright (C) sunlei
+ */
+
 #include "quic_ngx_session.h"
 #include "quic_ngx_stream.h"
 

@@ -1,4 +1,8 @@
 
+/*
+ * Copyright (C) sunlei
+ */
+
 #ifndef NET_QUIC_QUIC_NGX_INTERFACE_H_
 #define NET_QUIC_QUIC_NGX_INTERFACE_H_
 

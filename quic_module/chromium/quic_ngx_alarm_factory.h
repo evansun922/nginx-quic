@@ -1,4 +1,8 @@
 
+/*
+ * Copyright (C) sunlei
+ */
+
 #ifndef QUICHE_QUIC_CORE_QUIC_NGX_ALARM_FACTORY_H_
 #define QUICHE_QUIC_CORE_QUIC_NGX_ALARM_FACTORY_H_
 

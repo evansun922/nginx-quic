@@ -1,3 +1,8 @@
+
+/*
+ * Copyright (C) sunlei
+ */
+
 #include "quic_ngx_packet_reader.h"
 
 #include <errno.h>

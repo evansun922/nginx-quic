@@ -1,4 +1,8 @@
 
+/*
+ * Copyright (C) sunlei
+ */
+
 #include <sys/sysinfo.h>
 #include <sys/wait.h>
 #include <vector>
