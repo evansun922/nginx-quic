@@ -69,13 +69,11 @@ nginx-quic编译步骤比较复杂，因为用到了chromium项目中的编译�
 >               ...
 >
 >               server {
->                    listen              443 quic reuseport >sndbuf=1048576 rcvbuf=1048576;
+>                    listen              443 quic reuseport  sndbuf=1048576 rcvbuf=1048576;
  >                   
  >                   quic_ssl_certificate                 ssl/tv.test.com.crt;
  >                   quic_ssl_certificate_key       ssl/tv.test.com.pkcs8;
 >
->                   quic_bbr                        on;
->                   quic_flush_interval 20;
 >
 >
 >                   ...
