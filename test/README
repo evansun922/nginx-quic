@@ -1,0 +1,11 @@
+ubuntu 下运行
+./bequic_client <URL>
+
+出现问题：
+1. ./bequic_client: error while loading shared libraries: libbequic.so: cannot open shared object file: No such file or directory
+解决：
+export LD_LIBRARY_PATH=<libbequic path>
+
+2. ./bequic_client: error while loading shared libraries: libnss3.so: cannot open shared object file: No such file or directory
+解决：
+sudo apt-get install libnss3
