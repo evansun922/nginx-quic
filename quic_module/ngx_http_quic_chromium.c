@@ -317,7 +317,9 @@ ngx_do_chromium_alarm(ngx_event_t *ev)
   chromium_alarm_t *ca;
   
   ca = ev->data;
+  // printf("AAAAAAA ngx_do_chromium_alarm  %p\n", ca);
   read(ca->c.fd, &exp, sizeof(uint64_t));
+  // printf("AAAAAAA ngx_do_chromium_alarm  %p, exp:%lu\n", ca, exp);
   ca->onChromiumAlarm(ca->chromium_alarm);
 }
 
@@ -366,7 +368,7 @@ ngx_http_quic_CreateNgxTimer(void *module_context,
   rev->data            = ca;
   wev->log             = c->log;
 
-  c->fd = timerfd_create(CLOCK_MONOTONIC, 0);
+  c->fd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
   if (c->fd == -1) {
     ngx_log_error(NGX_LOG_ALERT, c->log, 0,
           "create timer: timerfd_create failed, errno is %d", errno);
@@ -416,6 +418,8 @@ ngx_http_quic_AddNgxTimer(void *module_context,
     ngx_log_error(NGX_LOG_ALERT, ca->c.log, 0,
           "add timer: timerfd_settime failed, errno is %d", errno);
   }
+
+  // printf("AAAAAAA add timer  %p, delay:%ld\n", ca, delay);
 }
 
 
@@ -435,6 +439,8 @@ ngx_http_quic_DelNgxTimer(void *module_context, void *ngx_timer)
     ngx_log_error(NGX_LOG_ALERT, ca->c.log, 0,
           "del timer: timerfd_settime failed, errno is %d", errno);
   }
+
+  // printf("AAAAAAA del timer  %p\n", ca);
 }
 
 
