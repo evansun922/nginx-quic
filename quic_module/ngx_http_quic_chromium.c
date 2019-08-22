@@ -313,7 +313,11 @@ ngx_http_quic_request_quic_2_ngx_in_chromium(void* ngx_connection,
 static void
 ngx_do_chromium_alarm(ngx_event_t *ev)
 {
-  chromium_alarm_t *ca = ev->data;
+  uint64_t          exp;
+  chromium_alarm_t *ca;
+  
+  ca = ev->data;
+  read(ca->c.fd, &exp, sizeof(uint64_t));
   ca->onChromiumAlarm(ca->chromium_alarm);
 }
 
