@@ -3,6 +3,7 @@
  * Copyright (C) sunlei
  */
 
+#include <sys/timerfd.h>
 
 #include "ngx_http_quic_chromium.h"
 #include "ngx_http_quic_module.h"
@@ -324,17 +325,69 @@ ngx_http_quic_CreateNgxTimer(void *module_context,
 {
   ngx_http_quic_context_t *quic_cxt;
   chromium_alarm_t        *ca;
+  ngx_connection_t        *c;
+  ngx_event_t             *rev,*wev;
+  ngx_pool_t              *pool;
+  ngx_log_t               *log;
+
 
   quic_cxt = module_context;
-  ca       = ngx_calloc(sizeof(chromium_alarm_t), quic_cxt->pool->log);
+  pool     = ngx_create_pool(1024, quic_cxt->pool->log);
+  if (pool == NULL) {
+    ngx_log_error(NGX_LOG_ALERT, quic_cxt->pool->log, 0,
+          "create timer: ngx_create_pool failed, errno is %d", errno);
+    goto failed_CreateNgxTimer;
+  }
+  ca       = ngx_palloc(pool, sizeof(chromium_alarm_t));
+  ngx_memzero(ca, sizeof(chromium_alarm_t));
+  c        = &ca->c;
+  c->read  = ngx_palloc(pool, sizeof(ngx_event_t));
+  c->write = ngx_palloc(pool, sizeof(ngx_event_t));
+  rev      = c->read;
+  wev      = c->write;
+  ngx_memzero(rev, sizeof(ngx_event_t));
+  ngx_memzero(wev, sizeof(ngx_event_t));
+
+  log       = ngx_palloc(pool, sizeof(ngx_log_t));
+  *log      = *quic_cxt->pool->log;
+  c->pool   = pool;
+  c->log    = log;
+  pool->log = log;
 
   ca->chromium_alarm   = chromium_alarm;
   ca->onChromiumAlarm  = onChromiumAlarm;
-  ca->ev.handler       = ngx_do_chromium_alarm;
-  ca->ev.log           = quic_cxt->pool->log;
-  ca->ev.data          = ca;
+  c->data              = ca;
+  rev->handler         = ngx_do_chromium_alarm;
+  rev->log             = c->log;
+  rev->data            = ca;
+  wev->log             = c->log;
+
+  c->fd = timerfd_create(CLOCK_MONOTONIC, 0);
+  if (c->fd == -1) {
+    ngx_log_error(NGX_LOG_ALERT, c->log, 0,
+          "create timer: timerfd_create failed, errno is %d", errno);
+    goto failed_CreateNgxTimer;
+  }
+  
+  struct itimerspec its;
+  ngx_memzero(&its, sizeof(struct itimerspec));
+  if (timerfd_settime(c->fd, 0, &its, NULL) == -1) {
+    ngx_log_error(NGX_LOG_ALERT, c->log, 0,
+          "create timer: timerfd_settime failed, errno is %d", errno);
+    close(c->fd);
+    goto failed_CreateNgxTimer;
+  }
+
+  ngx_add_event(rev, NGX_READ_EVENT, NGX_LEVEL_EVENT);
   
   return ca;
+
+ failed_CreateNgxTimer:
+
+  if (pool) {
+    ngx_destroy_pool(pool);
+  }
+  return NULL;
 }
 
 
@@ -345,12 +398,20 @@ ngx_http_quic_AddNgxTimer(void *module_context,
 {
   ngx_http_quic_context_t *quic_cxt;
   chromium_alarm_t        *ca;
-
+  
   quic_cxt             = module_context;
   ca                   = ngx_timer;
-  ca->ev.log           = quic_cxt->pool->log;
-  ngx_add_timer(&ca->ev, delay);
-  ca->ev.timer_set = 1;
+
+  struct itimerspec its;
+  its.it_value.tv_sec     = delay/1000000000;
+  its.it_value.tv_nsec    = delay%1000000000;
+  its.it_interval.tv_sec  = 0;
+  its.it_interval.tv_nsec = 0;
+  
+  if (timerfd_settime(ca->c.fd, 0, &its, NULL) == -1) {
+    ngx_log_error(NGX_LOG_ALERT, ca->c.log, 0,
+          "add timer: timerfd_settime failed, errno is %d", errno);
+  }
 }
 
 
@@ -359,11 +420,16 @@ ngx_http_quic_DelNgxTimer(void *module_context, void *ngx_timer)
 {
   ngx_http_quic_context_t *quic_cxt;
   chromium_alarm_t        *ca;
+  
+  quic_cxt             = module_context;
+  ca                   = ngx_timer;
 
-  quic_cxt = module_context;
-  ca = ngx_timer;
-  if (ca->ev.timer_set == 1) {
-    ngx_del_timer(&ca->ev);
+  struct itimerspec its;
+  ngx_memzero(&its, sizeof(struct itimerspec));
+  
+  if (timerfd_settime(ca->c.fd, 0, &its, NULL) == -1) {
+    ngx_log_error(NGX_LOG_ALERT, ca->c.log, 0,
+          "del timer: timerfd_settime failed, errno is %d", errno);
   }
 }
 
@@ -371,7 +437,20 @@ ngx_http_quic_DelNgxTimer(void *module_context, void *ngx_timer)
 static void
 ngx_http_quic_FreeNgxTimer(void *ngx_timer)
 {
-  ngx_free(ngx_timer);
+  chromium_alarm_t        *ca;
+  ngx_connection_t        *c;
+
+
+  ca = ngx_timer;
+  c  = &ca->c;
+  
+  if (c->fd > 0) {
+    close(c->fd);
+  }
+
+  if (c->pool) {
+    ngx_destroy_pool(c->pool);
+  }
 }
 
 

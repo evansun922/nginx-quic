@@ -14,7 +14,8 @@
 #include "quic_ngx_interface.h"
 
 typedef struct {
-  ngx_event_t ev;
+  // ngx_event_t ev;
+  ngx_connection_t c;
   void *chromium_alarm;
   OnChromiumAlarm onChromiumAlarm;
 } chromium_alarm_t;

@@ -41,6 +41,9 @@ class QuicNgxAlarm : public QuicAlarm {
       ngx_timer_ = ngx_handle_.create_ngx_timer(ngx_handle_.ngx_module_context,
                                                 this,
                                                 QuicNgxAlarm::OnAlarm);
+      if (ngx_timer_ == nullptr) {
+        return;
+      }
     } else {
       ngx_handle_.del_ngx_timer(ngx_handle_.ngx_module_context,
                                 ngx_timer_);
@@ -49,11 +52,11 @@ class QuicNgxAlarm : public QuicAlarm {
     int64_t time_offset = (deadline() - QuicTime::Zero()).ToMicroseconds();
     int64_t wait_time_in_us = time_offset - now_in_us;
     if (wait_time_in_us < 0 ) {
-      wait_time_in_us = 0;
+      wait_time_in_us = 1;
     }
     ngx_handle_.add_ngx_timer(ngx_handle_.ngx_module_context,
                               ngx_timer_,
-                              wait_time_in_us / 1000);
+                              wait_time_in_us * 1000);
   }
 
   void CancelImpl() override {
