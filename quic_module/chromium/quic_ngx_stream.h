@@ -38,6 +38,7 @@ class QuicNgxStream : public QuicSimpleServerStream {
   struct sockaddr_storage get_peer_address();
     std::string get_self_ip();
   struct sockaddr_storage get_self_address();
+  bool get_send_header() { return is_send_header_; }
   
   // bool OnStreamFrameAcked(QuicStreamOffset offset,
   //                         QuicByteCount data_length,
@@ -52,6 +53,7 @@ class QuicNgxStream : public QuicSimpleServerStream {
   bool is_http_chunked_;
   int http_chunked_step_; // 0-length, 1-data, 2-end(\r\n)
   bool fin_;
+  bool is_send_header_;
 };
 
 }  // namespace quic

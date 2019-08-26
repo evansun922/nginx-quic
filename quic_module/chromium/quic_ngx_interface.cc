@@ -130,8 +130,11 @@ ssize_t ngx_send_quic_packets(void* quic_stream,
   
   quic::QuicNgxStream *stream =
     reinterpret_cast<quic::QuicNgxStream*>(quic_stream);
-  // HTTP/1.x TODO if user data of start = "HTTP/1" is bug
-  if (len >= 7 && memcmp(data, "HTTP/1.", 7) == 0 ) {
+  //  start = "HTTP/1"
+  if (false == stream->get_send_header()) {
+    if (len < 7 || memcmp(data, "HTTP/1.", 7) != 0 ) {
+      return -1;
+    }
     if (stream->SendHttpHeaders(data, len) == false) {
       return -1;
     }

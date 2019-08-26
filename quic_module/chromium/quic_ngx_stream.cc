@@ -17,7 +17,7 @@ QuicNgxStream::QuicNgxStream(
     : QuicSimpleServerStream(id, session, type, quic_simple_server_backend),
       ngx_connection_(nullptr),
       content_length_(-1), had_send_length_(0), is_http_chunked_(false),
-      http_chunked_step_(0), fin_(false) {}
+      http_chunked_step_(0), fin_(false), is_send_header_(false) {}
 
 QuicNgxStream::QuicNgxStream(
     PendingStream* pending,
@@ -117,7 +117,8 @@ bool QuicNgxStream::SendHttpHeaders(const char* data, int len) {
   //           << " content-length " << proxy->content_length_
   //           << " fin " << fin;
   WriteHeaders(std::move(spdy_headers), fin_, nullptr);
-  
+
+  is_send_header_ = true;
   return true;
 }
 
