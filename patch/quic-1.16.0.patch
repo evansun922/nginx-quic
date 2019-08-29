@@ -1,6 +1,6 @@
 diff -ru src/core/ngx_connection.h src-quic/core/ngx_connection.h
 --- src/core/ngx_connection.h	2019-04-23 21:12:58.000000000 +0800
-+++ src-quic/core/ngx_connection.h	2019-08-15 14:52:46.715268737 +0800
++++ src-quic/core/ngx_connection.h	2019-08-26 11:50:17.053573917 +0800
 @@ -194,6 +194,10 @@
  #if (NGX_THREADS || NGX_COMPAT)
      ngx_thread_task_t  *sendfile_task;
@@ -14,7 +14,7 @@ diff -ru src/core/ngx_connection.h src-quic/core/ngx_connection.h
  
 diff -ru src/http/ngx_http.c src-quic/http/ngx_http.c
 --- src/http/ngx_http.c	2019-04-23 21:12:58.000000000 +0800
-+++ src-quic/http/ngx_http.c	2019-08-15 14:52:46.727268621 +0800
++++ src-quic/http/ngx_http.c	2019-08-26 11:50:17.009573916 +0800
 @@ -1147,6 +1147,11 @@
      ngx_http_conf_port_t       *port;
      ngx_http_core_main_conf_t  *cmcf;
@@ -82,21 +82,8 @@ diff -ru src/http/ngx_http.c src-quic/http/ngx_http.c
          if (addr[i].hash.buckets == NULL
 diff -ru src/http/ngx_http_core_module.c src-quic/http/ngx_http_core_module.c
 --- src/http/ngx_http_core_module.c	2019-04-23 21:12:58.000000000 +0800
-+++ src-quic/http/ngx_http_core_module.c	2019-08-15 14:52:46.727268621 +0800
-@@ -1225,7 +1225,12 @@
-         ngx_set_connection_log(r->connection, clcf->error_log);
-     }
- 
-+#if NGX_G_QUIC
-+    if ((ngx_io.flags & NGX_IO_SENDFILE) && clcf->sendfile &&
-+        r->connection->quic_stream == NULL) {
-+#else
-     if ((ngx_io.flags & NGX_IO_SENDFILE) && clcf->sendfile) {
-+#endif // NGX_G_QUIC
-         r->connection->sendfile = 1;
- 
-     } else {
-@@ -3808,6 +3813,9 @@
++++ src-quic/http/ngx_http_core_module.c	2019-08-26 11:50:17.041573917 +0800
+@@ -3808,6 +3808,9 @@
  #if (NGX_HAVE_INET6)
      lsopt.ipv6only = 1;
  #endif
@@ -106,7 +93,7 @@ diff -ru src/http/ngx_http_core_module.c src-quic/http/ngx_http_core_module.c
  
      for (n = 2; n < cf->args->nelts; n++) {
  
-@@ -3824,6 +3832,14 @@
+@@ -3824,6 +3827,14 @@
              continue;
          }
  
@@ -123,7 +110,7 @@ diff -ru src/http/ngx_http_core_module.c src-quic/http/ngx_http_core_module.c
              lsopt.setfib = ngx_atoi(value[n].data + 7, value[n].len - 7);
 diff -ru src/http/ngx_http_core_module.h src-quic/http/ngx_http_core_module.h
 --- src/http/ngx_http_core_module.h	2019-04-23 21:12:58.000000000 +0800
-+++ src-quic/http/ngx_http_core_module.h	2019-08-15 14:52:46.727268621 +0800
++++ src-quic/http/ngx_http_core_module.h	2019-08-26 11:50:17.041573917 +0800
 @@ -101,6 +101,11 @@
  #if (NGX_HAVE_DEFERRED_ACCEPT && defined SO_ACCEPTFILTER)
      char                      *accept_filter;
@@ -148,7 +135,7 @@ diff -ru src/http/ngx_http_core_module.h src-quic/http/ngx_http_core_module.h
  
 diff -ru src/http/ngx_http_parse.c src-quic/http/ngx_http_parse.c
 --- src/http/ngx_http_parse.c	2019-04-23 21:12:58.000000000 +0800
-+++ src-quic/http/ngx_http_parse.c	2019-08-15 14:52:46.727268621 +0800
++++ src-quic/http/ngx_http_parse.c	2019-08-26 11:50:17.041573917 +0800
 @@ -728,10 +728,15 @@
              }
  
@@ -168,7 +155,7 @@ diff -ru src/http/ngx_http_parse.c src-quic/http/ngx_http_parse.c
              break;
 diff -ru src/http/ngx_http_request.c src-quic/http/ngx_http_request.c
 --- src/http/ngx_http_request.c	2019-04-23 21:12:58.000000000 +0800
-+++ src-quic/http/ngx_http_request.c	2019-08-15 14:52:46.727268621 +0800
++++ src-quic/http/ngx_http_request.c	2019-08-26 11:50:17.009573916 +0800
 @@ -3173,6 +3173,13 @@
          }
      }
@@ -185,7 +172,7 @@ diff -ru src/http/ngx_http_request.c src-quic/http/ngx_http_request.c
      if (c->tcp_nopush == NGX_TCP_NOPUSH_SET) {
 diff -ru src/http/ngx_http_request.h src-quic/http/ngx_http_request.h
 --- src/http/ngx_http_request.h	2019-04-23 21:12:58.000000000 +0800
-+++ src-quic/http/ngx_http_request.h	2019-08-15 14:52:46.727268621 +0800
++++ src-quic/http/ngx_http_request.h	2019-08-26 11:50:17.005573916 +0800
 @@ -24,6 +24,9 @@
  #define NGX_HTTP_VERSION_10                1000
  #define NGX_HTTP_VERSION_11                1001

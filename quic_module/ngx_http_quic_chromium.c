@@ -386,7 +386,9 @@ ngx_quic_send_chain(ngx_connection_t *c, ngx_chain_t *in, off_t limit)
   off_t                    send;
   size_t                   size;
   ngx_event_t              *wev;
-
+  u_char                   *buf;
+  ssize_t                  n;
+  
 
   wev = c->write;
 
@@ -409,46 +411,71 @@ ngx_quic_send_chain(ngx_connection_t *c, ngx_chain_t *in, off_t limit)
     }
 
     if (in->buf->in_file) {
-      ngx_log_error(NGX_LOG_ALERT, c->log, 0,
-                    "quic send not support file-fd");
-      return NGX_CHAIN_ERROR;
-    }
+      
+      size = in->buf->file_last - in->buf->file_pos;
 
-    if (!ngx_buf_in_memory(in->buf)) {
-      ngx_log_error(NGX_LOG_ALERT, c->log, 0,
-                    "bad buf in output chain "
-                    "t:%d r:%d f:%d %p %p-%p %p %O-%O",
-                    in->buf->temporary,
-                    in->buf->recycled,
-                    in->buf->in_file,
-                    in->buf->start,
-                    in->buf->pos,
-                    in->buf->last,
-                    in->buf->file,
-                    in->buf->file_pos,
-                    in->buf->file_last);
+      if (!size) {
+        ngx_debug_point();
+        return NGX_CHAIN_ERROR;
+      }
 
-      ngx_debug_point();
+      if ((off_t)size > limit - send) {
+        size = limit - send;
+      }
 
-      return NGX_CHAIN_ERROR;
-    }
+      buf = ngx_calloc(size, c->log);
+      if (!buf) {
+        ngx_log_error(NGX_LOG_ALERT, c->log, 0,
+                      "calloc memory failed in ngx_http_quic_chromium");
+        return NGX_CHAIN_ERROR;
+      }
 
-    size = in->buf->last - in->buf->pos;
+      n = ngx_read_file(in->buf->file, buf, size, in->buf->file_pos);
+      if (n == NGX_ERROR) {
+        ngx_free(buf);
+        ngx_log_error(NGX_LOG_ALERT, c->log, 0,
+                      "read file failed in ngx_http_quic_chromium, errno is %d", errno);
+        return NGX_CHAIN_ERROR;
+      }
 
-    if ((off_t)size > limit - send) {
-      size = limit - send;
-    }
+      if (ngx_send_quic_packets(c->quic_stream,
+                                (const char*)buf, n) == -1) {
+        ngx_free(buf);
+        ngx_log_error(NGX_LOG_ALERT, c->log, 0,
+                      "quic send failed in ngx_http_quic_chromium");
+        return NGX_CHAIN_ERROR;
+      }
 
-    if (ngx_send_quic_packets(c->quic_stream,
-                              (const char*)in->buf->pos, size) == -1) {
-      ngx_log_error(NGX_LOG_ALERT, c->log, 0,
-                    "quic send failed in ngx_http_quic_chromium");
-      return NGX_CHAIN_ERROR;
+      ngx_free(buf);
+
+      size = n;
+      in->buf->file_pos += size;
+            
+    } else {
+
+      size = in->buf->last - in->buf->pos;
+
+      if (!size) {
+        ngx_debug_point();
+        return NGX_CHAIN_ERROR;
+      }
+      
+      if ((off_t)size > limit - send) {
+        size = limit - send;
+      }
+
+      if (ngx_send_quic_packets(c->quic_stream,
+                                (const char*)in->buf->pos, size) == -1) {
+        ngx_log_error(NGX_LOG_ALERT, c->log, 0,
+                      "quic send failed in ngx_http_quic_chromium");
+        return NGX_CHAIN_ERROR;
+      }
+      
+      in->buf->pos = in->buf->pos + size;
     }
     
     c->sent += size;
     send += size;
-    in->buf->pos = in->buf->pos + size;
 
     if (send >= limit) {
       break;
