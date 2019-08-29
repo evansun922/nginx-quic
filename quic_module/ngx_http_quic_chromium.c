@@ -305,6 +305,8 @@ ngx_http_quic_request_quic_2_ngx_in_chromium(void* ngx_connection,
   // Forge a tcp socket for upstream, limit-rate, api of tcp
   c->fd = ngx_socket(ls->sockaddr->sa_family, SOCK_STREAM, 0);
 
+  wev->ready = 1;
+  
   ls->handler(c);
 }
 

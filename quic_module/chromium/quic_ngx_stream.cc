@@ -28,7 +28,7 @@ QuicNgxStream::QuicNgxStream(
                              type, quic_simple_server_backend),
       ngx_connection_(nullptr),
       content_length_(-1), had_send_length_(0), is_http_chunked_(false),
-      http_chunked_step_(0), fin_(false) {}
+      http_chunked_step_(0), fin_(false), is_send_header_(false) {}
 
 QuicNgxStream::~QuicNgxStream() = default;
 
