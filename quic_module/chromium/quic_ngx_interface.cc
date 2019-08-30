@@ -80,7 +80,7 @@ void* ngx_init_quic(void* ngx_module_context,
   CHECK(logging::InitLogging(settings));
 
   if (bbr) {
-    SetQuicReloadableFlag(quic_default_to_bbr, true);
+    SetQuicReloadableFlag(quic_default_to_bbr_v2, true);
   }
   
   quic::QuicNgxBackend* backend = new quic::QuicNgxBackend();
