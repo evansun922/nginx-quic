@@ -105,8 +105,9 @@ void ngx_free_quic(void* chromium_server) {
   quic::QuicNgxServer *server =
     reinterpret_cast<quic::QuicNgxServer*>(chromium_server);
 
-  delete server->server_backend();
+  quic::QuicNgxBackend* back_end = server->server_backend();
   delete server;
+  delete back_end;
 }
 
 void ngx_shutdown_quic(void* chromium_server) {
