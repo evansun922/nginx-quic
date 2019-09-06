@@ -166,7 +166,7 @@ QuicDispatcher* QuicNgxServer::CreateQuicDispatcher(void* ngx_module_context,
       &config_, &crypto_config_, &version_manager_,
       std::unique_ptr<quic::QuicConnectionHelperInterface>(helper_),
       std::unique_ptr<QuicCryptoServerStream::Helper>(
-          new QuicSimpleCryptoServerStreamHelper(QuicRandom::GetInstance())),
+          new QuicSimpleCryptoServerStreamHelper()),
       std::unique_ptr<QuicAlarmFactory>(
          new QuicNgxAlarmFactory(ngx_module_context,
                                  create_ngx_timer,
