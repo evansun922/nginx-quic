@@ -122,5 +122,8 @@ Context:        http,  server,   location
 Idle network timeout in seconds.
 ```
 
+## Copyright
+- SOHU-TV, Inc.
+
 ## Author
 - sunlei     &emsp; email: sswin0922@163.com

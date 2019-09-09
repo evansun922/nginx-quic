@@ -120,5 +120,8 @@ Context:        http,  server,   location
 客户端网络空闲超时时间，默认10分钟。
 ```
 
+## Copyright
+- 搜狐视频
+
 ## 作者
 - sunlei     &emsp; email: sswin0922@163.com
