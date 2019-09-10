@@ -61,6 +61,7 @@ void* ngx_init_quic(void* ngx_module_context,
                     const char* certificate_file,
                     const char* key_file,
                     int bbr,
+                    int ietf_draft,
                     int idle_network_timeout);
 
 void ngx_free_quic(void* chromium_server);

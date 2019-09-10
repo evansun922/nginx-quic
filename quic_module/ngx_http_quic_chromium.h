@@ -29,6 +29,7 @@ void* ngx_http_quic_init_chromium(ngx_http_quic_context_t *module_context,
                                   ngx_str_t *certificate,
                                   ngx_str_t *certificate_key,
                                   int bbr,
+                                  int ietf_draft,
                                   int idle_network_timeout);
 
 void ngx_http_quic_handler_buf_by_quic(ngx_connection_t *c);

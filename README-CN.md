@@ -108,6 +108,12 @@ Context:          http,  server,  location
 quic是否启用bbr拥塞算法
 
 
+Syntax:            quic_ietf_draft      on | off;
+Default:           quic_ietf_draft      off;
+Context:          http,  server,  location
+启用IETF草案版本.
+
+
 Syntax:          quic_flush_interval     number;
 Default:         quic_flush_interval     40;
 Context:        http,  server,   location

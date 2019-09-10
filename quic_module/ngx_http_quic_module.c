@@ -55,6 +55,13 @@ static ngx_command_t  ngx_http_quic_commands[] = {
     offsetof(ngx_http_quic_srv_conf_t, bbr),
     NULL },
 
+  { ngx_string("quic_ietf_draft"),
+    NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_FLAG,
+    ngx_conf_set_flag_slot,
+    NGX_HTTP_SRV_CONF_OFFSET,
+    offsetof(ngx_http_quic_srv_conf_t, ietf_draft),
+    NULL },
+
   { ngx_string("quic_flush_interval"),
     NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
     ngx_conf_set_size_slot,
@@ -67,8 +74,7 @@ static ngx_command_t  ngx_http_quic_commands[] = {
     ngx_conf_set_sec_slot,
     NGX_HTTP_SRV_CONF_OFFSET,
     offsetof(ngx_http_quic_srv_conf_t, idle_network_timeout),
-    NULL },  
- 
+    NULL },
 
   ngx_null_command
 };
@@ -346,6 +352,7 @@ ngx_http_quic_process_init(ngx_cycle_t *cycle)
                                                               &qscf->certificate,
                                                               &qscf->certificate_key,
                                                               qscf->bbr,
+                                                              qscf->ietf_draft,
                                                               qscf->idle_network_timeout);
       if (quic_ctx->chromium_server == NULL) {
         ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "chromium init failed");
@@ -429,6 +436,7 @@ ngx_http_quic_create_srv_conf(ngx_conf_t *cf)
   }
 
   qscf->bbr = NGX_CONF_UNSET;
+  qscf->ietf_draft = NGX_CONF_UNSET;
   qscf->flush_interval = NGX_CONF_UNSET_SIZE;
   qscf->idle_network_timeout = NGX_CONF_UNSET;
 
@@ -462,6 +470,8 @@ ngx_http_quic_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
 
 
   ngx_conf_merge_value(conf->bbr, prev->bbr, 0);
+
+  ngx_conf_merge_value(conf->ietf_draft, prev->ietf_draft, 0);
   
   ngx_conf_merge_size_value(conf->flush_interval, prev->flush_interval, 40);
 

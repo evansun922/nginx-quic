@@ -39,6 +39,7 @@ void* ngx_init_quic(void* ngx_module_context,
                     const char* certificate_file,
                     const char* key_file,
                     int bbr,
+                    int ietf_draft,
                     int idle_network_timeout) {
   // base::AtExitManager exit_manager;
   
@@ -81,6 +82,13 @@ void* ngx_init_quic(void* ngx_module_context,
 
   if (bbr) {
     SetQuicReloadableFlag(quic_default_to_bbr_v2, true);
+  }
+
+  if (ietf_draft) {
+    quic::QuicVersionInitializeSupportForIetfDraft();
+    quic::QuicEnableVersion(
+          quic::ParsedQuicVersion(
+                quic::PROTOCOL_TLS1_3, quic::QUIC_VERSION_99));
   }
   
   quic::QuicNgxBackend* backend = new quic::QuicNgxBackend();

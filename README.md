@@ -110,6 +110,12 @@ Context:          http,  server,  location
 enable bbr of quic
 
 
+Syntax:            quic_ietf_draft      on | off;
+Default:           quic_ietf_draft      off;
+Context:          http,  server,  location
+use the IETF draft version.
+
+
 Syntax:          quic_flush_interval     number;
 Default:         quic_flush_interval     40;
 Context:        http,  server,   location
