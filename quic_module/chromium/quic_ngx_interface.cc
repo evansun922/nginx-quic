@@ -8,6 +8,10 @@
 #include <vector>
 #include <ngx_core.h>
 
+#include <openssl/pem.h>
+#include <openssl/evp.h>
+#include <openssl/pkcs12.h>
+
 #include "base/at_exit.h"
 #include "base/strings/stringprintf.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_default_proof_providers.h"
@@ -19,6 +23,7 @@
 #include "quic_ngx_interface.h"
 
 
+static bool ngx_try_key2pkcs8(const char* in_file, const char* out_file);
 
 #define set_ngx_quic_args(argc, argv, v)                \
   argv[argc] = new char[(v).length()+1];                \
@@ -42,6 +47,15 @@ void* ngx_init_quic(void* ngx_module_context,
                     int ietf_draft,
                     int idle_network_timeout) {
   // base::AtExitManager exit_manager;
+
+  std::string keyfile = key_file;
+  std::string outfile = base::StringPrintf(
+                         "/tmp/.%d-%p-%lu.pkcs8",
+                         getpid(), key_file, time(0));
+  bool had_key2pkcs8 = ngx_try_key2pkcs8(key_file, outfile.c_str());
+  if (had_key2pkcs8) {
+    keyfile = outfile;
+  }
   
   int quic_argc = 0;
   char *quic_argv[10];
@@ -53,7 +67,7 @@ void* ngx_init_quic(void* ngx_module_context,
   v = base::StringPrintf("--certificate_file=%s", certificate_file);
   set_ngx_quic_args(quic_argc, quic_argv, v);
   
-  v = base::StringPrintf("--key_file=%s", key_file);
+  v = base::StringPrintf("--key_file=%s", keyfile.c_str());
   set_ngx_quic_args(quic_argc, quic_argv, v);
   
   // v = "--v=1";
@@ -106,6 +120,9 @@ void* ngx_init_quic(void* ngx_module_context,
                      add_ngx_timer,
                      del_ngx_timer,
                      free_ngx_timer);
+  
+  ::remove(outfile.c_str());
+  
   return server;
 }
 
@@ -183,5 +200,82 @@ void ngx_set_nc_for_quic_stream(void* quic_stream,
   stream->set_ngx_connection(ngx_connection);
 }
 
+static bool ngx_try_key2pkcs8(const char* in_file, const char* out_file) {
 
+  BIO *in, *out, *key;
+  EVP_PKEY *pkey;
+  FILE *fp;
+  PKCS8_PRIV_KEY_INFO *p8inf;
+  bool rs = true;
+
+  in = NULL;
+  out = NULL;
+  key = NULL;
+  pkey = NULL;
+  fp = NULL;
+  p8inf = NULL;
+  
+  in = BIO_new_file(in_file, "r");
+  if (in == NULL) {
+    rs = false;
+    goto key2pkcs8_end;
+  }
+  
+  fp = fopen(out_file, "wb");
+  if (fp == NULL) {
+    rs = false;
+    goto key2pkcs8_end;
+  }
+  
+  out = BIO_new_fp(fp, BIO_CLOSE);
+  if (out == NULL) {
+    rs = false;
+    goto key2pkcs8_end;
+  }
+
+  key = BIO_new_file(in_file, "r");
+  if (key == NULL) {
+    rs = false;
+    goto key2pkcs8_end;
+  }
+
+  pkey = PEM_read_bio_PrivateKey(key, NULL, NULL, NULL);
+  if (pkey == NULL) {
+    rs = false;
+    goto key2pkcs8_end;
+  }
+
+  p8inf = EVP_PKEY2PKCS8(pkey);
+  if (p8inf == NULL) {
+    rs = false;
+    goto key2pkcs8_end;
+  }
+
+  i2d_PKCS8_PRIV_KEY_INFO_bio(out, p8inf);
+  
+ key2pkcs8_end:
+  if (p8inf) {
+    PKCS8_PRIV_KEY_INFO_free(p8inf);
+  }
+
+  if (pkey) {
+    EVP_PKEY_free(pkey);
+  }
+
+  if (out) {
+    BIO_free_all(out);
+  } else if (fp) {
+    fclose(fp);
+  }
+
+  if (in) {
+    BIO_free(in);
+  }
+
+  if (key) {
+    BIO_free(key);
+  }
+
+  return rs;
+}
 

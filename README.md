@@ -100,8 +100,6 @@ Syntax:               quic_ssl_certificate_key          /path/to/tv.test.com.pkc
 Default:              —
 Context:             server
  ssl-certificate's key of quic. 
-you can use this cmd to change "*.key" to "*.pkcs8":
-openssl pkcs8 -topk8 -outform DER -inform PEM -in tv.test.com.key -out tv.test.com.pkcs8 -nocrypt
 
 
 Syntax:            quic_bbr      on | off;

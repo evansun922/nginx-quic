@@ -98,8 +98,6 @@ Syntax:               quic_ssl_certificate_key          /path/to/tv.test.com.pkc
 Default:              —
 Context:             server
 quic用到的ssl证书的key
-可以使用下面的命令，将*.key转换成*.pkcs8:
-openssl pkcs8 -topk8 -outform DER -inform PEM -in tv.test.com.key -out tv.test.com.pkcs8 -nocrypt
 
 
 Syntax:            quic_bbr      on | off;
