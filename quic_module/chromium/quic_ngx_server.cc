@@ -51,6 +51,18 @@ QuicNgxServer::QuicNgxServer(std::unique_ptr<ProofSource> proof_source,
                   idle_network_timeout,
                   kQuicDefaultConnectionIdLength) {}
 
+QuicNgxServer::QuicNgxServer(std::unique_ptr<ProofSource> proof_source,
+                             const QuicConfig& config,
+                             QuicNgxBackend* quic_ngx_server_backend,
+                             int idle_network_timeout)
+  : QuicNgxServer(std::move(proof_source),
+                  config,
+                  QuicCryptoServerConfig::ConfigOptions(),
+                  AllSupportedVersions(),
+                  quic_ngx_server_backend,
+                  idle_network_timeout,
+                  kQuicDefaultConnectionIdLength) {}
+
 QuicNgxServer::QuicNgxServer(
     std::unique_ptr<ProofSource> proof_source,
     const QuicConfig& config,

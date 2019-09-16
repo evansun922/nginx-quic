@@ -108,8 +108,15 @@ void* ngx_init_quic(void* ngx_module_context,
   quic::QuicNgxBackend* backend = new quic::QuicNgxBackend();
   backend->InitializeBackend("");
   backend->set_ngx_args(req_quic_2_ngx, set_stream_for_ngx);
+
+  quic::QuicConfig config;
+  quic::QuicTagVector connection_options;
+  connection_options.push_back(quic::k5RTO);
+  // config.SetConnectionOptionsToSend(connection_options);
+  config.SetInitialReceivedConnectionOptions(connection_options);
   quic::QuicNgxServer* server =
     new quic::QuicNgxServer(quic::CreateDefaultProofSource(),
+                            config,
                             backend,
                             idle_network_timeout);
   server->Initialize(ngx_module_context,
