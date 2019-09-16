@@ -216,30 +216,5 @@ void QuicNgxServer::Shutdown() {
   }
 }
 
-// void QuicNgxServer::OnEvent(int fd, QuicEpollEvent* event) {
-//   DCHECK_EQ(fd, fd_);
-//   event->out_ready_mask = 0;
-
-//   if (event->in_events & EPOLLIN) {
-//     QUIC_DVLOG(1) << "EPOLLIN";
-
-//     dispatcher_->ProcessBufferedChlos(kNumSessionsToCreatePerSocketEvent);
-
-//     bool more_to_read = true;
-//     while (more_to_read) {
-//       more_to_read = packet_reader_->ReadAndDispatchPackets(
-//           fd_, port_, QuicEpollClock(&epoll_server_), dispatcher_.get(),
-//           overflow_supported_ ? &packets_dropped_ : nullptr);
-//     }
-
-//     if (dispatcher_->HasChlosBuffered()) {
-//       // Register EPOLLIN event to consume buffered CHLO(s).
-//       event->out_ready_mask |= EPOLLIN;
-//     }
-//   }
-
-//   if (event->in_events & EPOLLERR) {
-//   }
-// }
 
 }  // namespace quic
