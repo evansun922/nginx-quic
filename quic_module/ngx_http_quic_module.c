@@ -32,20 +32,27 @@ static ngx_int_t ngx_http_variable_quic_scheme(ngx_http_request_t *r,
 
 
 
+char *
+ngx_conf_set_str_array_slot_my(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+{
+  return ngx_conf_set_str_array_slot(cf, cmd, conf);
+}
+
+
 static ngx_command_t  ngx_http_quic_commands[] = {
 
   { ngx_string("quic_ssl_certificate"),
     NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_CONF_TAKE1,
-    ngx_conf_set_str_slot,
+    ngx_conf_set_str_array_slot_my,
     NGX_HTTP_SRV_CONF_OFFSET,
-    offsetof(ngx_http_quic_srv_conf_t, certificate),
+    offsetof(ngx_http_quic_srv_conf_t, certificates),
     NULL },
 
   { ngx_string("quic_ssl_certificate_key"),
     NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_CONF_TAKE1,
-    ngx_conf_set_str_slot,
+    ngx_conf_set_str_array_slot,
     NGX_HTTP_SRV_CONF_OFFSET,
-    offsetof(ngx_http_quic_srv_conf_t, certificate_key),
+    offsetof(ngx_http_quic_srv_conf_t, certificate_keys),
     NULL },
 
   { ngx_string("quic_bbr"),
@@ -219,7 +226,12 @@ ngx_http_quic_module_init(ngx_cycle_t *cycle)
 static ngx_int_t
 ngx_http_quic_process_init(ngx_cycle_t *cycle)
 {
-  ngx_uint_t                      i;
+  char                            **certificate_list;
+  char                            **certificate_key_list;
+  ngx_array_t                     *certificate_ary;
+  ngx_array_t                     *certificate_key_ary;
+  ngx_str_t                       *cert, *key, *str;
+  ngx_uint_t                      i, j, s, nelts;
   ngx_listening_t                 *ls;
   ngx_connection_t                *lc;
   ngx_pool_t                      *pool;
@@ -235,6 +247,9 @@ ngx_http_quic_process_init(ngx_cycle_t *cycle)
   
   ngx_http_quic_srv_conf_t        *qscf;
   int                             p;
+
+  ngx_http_core_main_conf_t       *cmcf;
+  ngx_http_core_srv_conf_t        **cscfp;
   
   
   ls = cycle->listening.elts;
@@ -262,7 +277,7 @@ ngx_http_quic_process_init(ngx_cycle_t *cycle)
         break;
       }
 
-      
+           
       qscf = ngx_http_conf_get_module_srv_conf(conf->default_server,
                                                ngx_http_quic_module);
       
@@ -301,59 +316,115 @@ ngx_http_quic_process_init(ngx_cycle_t *cycle)
 
       quic_ctx->flush_interval = qscf->flush_interval;
 
-      if (qscf->certificate_key.len == 0) {
-        ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
-                      "no \"quic_ssl_certificate_key\" is defined for "
-                      "the \"quic\".");
-        return NGX_ERROR;
+      //
+      certificate_ary = ngx_array_create(pool, 4, sizeof(ngx_str_t));
+      certificate_key_ary = ngx_array_create(pool, 4, sizeof(ngx_str_t));
+      
+      cmcf = ngx_http_conf_get_module_main_conf(conf->default_server,
+                                                ngx_http_core_module);
+
+      cscfp = cmcf->servers.elts;
+
+      for (s = 0; s < cmcf->servers.nelts; s++) {
+
+        if (!qscf->certificates || !qscf->certificate_keys) {
+          ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
+                        "certificates or certificate_keys is empty.");
+          continue;
+        }
+
+        if (qscf->certificates->nelts != qscf->certificate_keys->nelts) {
+          ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
+                        "certificates of count(%u) != certificate_keys of count(%u).",
+                        qscf->certificates->nelts, qscf->certificate_keys->nelts);
+          return NGX_ERROR;
+        }
+        
+        qscf = cscfp[s]->ctx->srv_conf[ngx_http_quic_module.ctx_index];
+        cert = qscf->certificates->elts;
+        key = qscf->certificate_keys->elts;
+        nelts = qscf->certificates->nelts;
+
+        for (j = 0; j < nelts; j++) {
+          str = ngx_array_push(certificate_ary);
+          *str = cert[j];
+
+          str = ngx_array_push(certificate_key_ary);
+          *str = key[j];
+        }
       }
 
-      if (qscf->certificate.len == 0) {
+      nelts = certificate_ary->nelts;
+      
+      if (nelts == 0) {
         ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
-                      "no \"quic_ssl_certificate\" is defined for "
-                      "the \"quic\".");
-        return NGX_ERROR;
-      }
-
-      if (ngx_get_full_name(pool, &cycle->conf_prefix, &qscf->certificate) 
-          != NGX_OK) {
-        ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
-                      "ngx_get_full_name failed, %V",
-                      &qscf->certificate);
-        return NGX_ERROR;
-      }
-
-      if (ngx_get_full_name(pool, &cycle->conf_prefix, &qscf->certificate_key) 
-          != NGX_OK) {
-        ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
-                      "ngx_get_full_name failed, %V",
-                      &qscf->certificate_key);
-        return NGX_ERROR;
-      }
-
-      if (access((char*)qscf->certificate.data, F_OK) == -1) { 
-        ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
-                      "quic_ssl_certificate file not exist, %V",
-                      &qscf->certificate);
-        return NGX_ERROR;
-      }
-
-      if (access((char*)qscf->certificate_key.data, F_OK) == -1) {
-        ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
-                      "quic_ssl_certificate_key not exist, %V",
-                      &qscf->certificate_key);
+                      "certificates or certificate_keys is empty.");
         return NGX_ERROR;
       }
       
+      cert = certificate_ary->elts;
+      key = certificate_key_ary->elts;
+      certificate_list = ngx_pcalloc(pool, sizeof(char*)*(nelts+1));
+      certificate_key_list = ngx_pcalloc(pool, sizeof(char*)*(nelts+1));
+      
+      for (j = 0; j < nelts; j++) {
+        
+        if (key[j].len == 0) {
+          ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
+                        "no \"quic_ssl_certificate_key\" is empty.");
+          return NGX_ERROR;
+        }
+
+        if (cert[j].len == 0) {
+          ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
+                        "no \"quic_ssl_certificate\" is empty.");
+          return NGX_ERROR;
+        }
+
+        if (ngx_get_full_name(pool, &cycle->conf_prefix, &cert[j]) 
+            != NGX_OK) {
+          ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
+                        "ngx_get_full_name failed, %V", &cert[j]);
+          return NGX_ERROR;
+        }
+
+        if (ngx_get_full_name(pool, &cycle->conf_prefix, &key[j]) 
+            != NGX_OK) {
+          ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
+                        "ngx_get_full_name failed, %V", &key[j]);
+          return NGX_ERROR;
+        }
+
+        if (access((char*)cert[j].data, F_OK) == -1) { 
+          ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
+                        "quic_ssl_certificate file not exist, %V",
+                        &cert[j]);
+          return NGX_ERROR;
+        }
+
+        if (access((char*)key[j].data, F_OK) == -1) {
+          ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
+                        "quic_ssl_certificate_key not exist, %V",
+                        &key[j]);
+          return NGX_ERROR;
+        }
+
+        certificate_list[j] = (char*)cert[j].data;
+        certificate_key_list[j] = (char*)key[j].data;
+      }
+
+      certificate_list[j] = NULL;
+      certificate_key_list[j] = NULL;
+      
       quic_ctx->chromium_server = ngx_http_quic_init_chromium(quic_ctx,
-                                                              ls[i].fd,
-                                                              p,
-                                                              ls[i].sockaddr->sa_family,
-                                                              &qscf->certificate,
-                                                              &qscf->certificate_key,
-                                                              qscf->bbr,
-                                                              qscf->ietf_draft,
-                                                              qscf->idle_network_timeout);
+                                    ls[i].fd,
+                                    p,
+                                    ls[i].sockaddr->sa_family,
+                                    certificate_list,
+                                    certificate_key_list,
+                                    qscf->bbr,
+                                    qscf->ietf_draft,
+                                    qscf->idle_network_timeout);
       if (quic_ctx->chromium_server == NULL) {
         ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "chromium init failed");
         return NGX_ERROR;
@@ -435,9 +506,11 @@ ngx_http_quic_create_srv_conf(ngx_conf_t *cf)
     return NULL;
   }
 
-  qscf->bbr = NGX_CONF_UNSET;
-  qscf->ietf_draft = NGX_CONF_UNSET;
-  qscf->flush_interval = NGX_CONF_UNSET_SIZE;
+  qscf->certificates         = NGX_CONF_UNSET_PTR;
+  qscf->certificate_keys     = NGX_CONF_UNSET_PTR;
+  qscf->bbr                  = NGX_CONF_UNSET;
+  qscf->ietf_draft           = NGX_CONF_UNSET;
+  qscf->flush_interval       = NGX_CONF_UNSET_SIZE;
   qscf->idle_network_timeout = NGX_CONF_UNSET;
 
 
@@ -451,23 +524,11 @@ ngx_http_quic_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
   ngx_http_quic_srv_conf_t *prev = parent;
   ngx_http_quic_srv_conf_t *conf = child;
 
-  // if (conf->certificate.len == 0) {
-  //   ngx_log_error(NGX_LOG_EMERG, cf->log, 0,
-  //                 "no \"quic_ssl_certificate\" is defined for "
-  //                 "the \"quic\".");
-  //   return NGX_CONF_ERROR;
-  // }
-  ngx_conf_merge_str_value(conf->certificate, prev->certificate, "");
 
-  
-  // if (conf->certificate_key.len == 0) {
-  //   ngx_log_error(NGX_LOG_EMERG, cf->log, 0,
-  //                 "no \"quic_ssl_certificate_key\" is defined for "
-  //                 "the \"quic\".");
-  //   return NGX_CONF_ERROR;
-  // }
-  ngx_conf_merge_str_value(conf->certificate_key, prev->certificate_key, "");
-
+  ngx_conf_merge_ptr_value(conf->certificates, prev->certificates,
+                           NULL);
+  ngx_conf_merge_ptr_value(conf->certificate_keys, prev->certificate_keys,
+                           NULL);
 
   ngx_conf_merge_value(conf->bbr, prev->bbr, 0);
 

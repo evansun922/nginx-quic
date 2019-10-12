@@ -15,8 +15,8 @@
 
 
 typedef struct {
-  ngx_str_t                 certificate;
-  ngx_str_t                 certificate_key;
+  ngx_array_t               *certificates;
+  ngx_array_t               *certificate_keys;
   ngx_flag_t                bbr;
   ngx_flag_t                ietf_draft;
   size_t                    flush_interval;  // millisecond

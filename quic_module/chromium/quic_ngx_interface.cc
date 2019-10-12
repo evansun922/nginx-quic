@@ -21,6 +21,7 @@
 #include "quic_ngx_server.h"
 #include "quic_ngx_stream.h"
 #include "quic_ngx_interface.h"
+#include "proof_source_nginx.h"
 
 
 static bool ngx_try_key2pkcs8(const char* in_file, const char* out_file);
@@ -41,21 +42,13 @@ void* ngx_init_quic(void* ngx_module_context,
                     FreeNgxTimer free_ngx_timer,
                     RequestHttpQuic2Ngx req_quic_2_ngx,
                     SetStreamForNgx set_stream_for_ngx,
-                    const char* certificate_file,
-                    const char* key_file,
+                    char **certificate_list,
+                    char **certificate_key_list,
                     int bbr,
                     int ietf_draft,
                     int idle_network_timeout) {
   // base::AtExitManager exit_manager;
-
-  std::string keyfile = key_file;
-  std::string outfile = base::StringPrintf(
-                         "/tmp/.%d-%p-%lu.pkcs8",
-                         getpid(), key_file, time(0));
-  bool had_key2pkcs8 = ngx_try_key2pkcs8(key_file, outfile.c_str());
-  if (had_key2pkcs8) {
-    keyfile = outfile;
-  }
+  std::vector<std::string> pkcs8_paths;
   
   int quic_argc = 0;
   char *quic_argv[10];
@@ -64,11 +57,11 @@ void* ngx_init_quic(void* ngx_module_context,
   std::string v = "libngx_quic";
   set_ngx_quic_args(quic_argc, quic_argv, v);
   
-  v = base::StringPrintf("--certificate_file=%s", certificate_file);
-  set_ngx_quic_args(quic_argc, quic_argv, v);
+  // v = base::StringPrintf("--certificate_file=%s", certificate_file);
+  // set_ngx_quic_args(quic_argc, quic_argv, v);
   
-  v = base::StringPrintf("--key_file=%s", keyfile.c_str());
-  set_ngx_quic_args(quic_argc, quic_argv, v);
+  // v = base::StringPrintf("--key_file=%s", keyfile.c_str());
+  // set_ngx_quic_args(quic_argc, quic_argv, v);
   
   // v = "--v=1";
   // set_ngx_quic_args(quic_argc, quic_argv, v);
@@ -98,6 +91,7 @@ void* ngx_init_quic(void* ngx_module_context,
     SetQuicReloadableFlag(quic_default_to_bbr_v2, true);
   }
 
+  // TODO
   if (ietf_draft) {
     quic::QuicVersionInitializeSupportForIetfDraft();
     quic::QuicEnableVersion(
@@ -109,13 +103,33 @@ void* ngx_init_quic(void* ngx_module_context,
   backend->InitializeBackend("");
   backend->set_ngx_args(req_quic_2_ngx, set_stream_for_ngx);
 
+  auto proof_source = std::make_unique<net::ProofSourceNginx>();
+  for (int i = 0; certificate_list[i] && certificate_key_list[i]; i++) {
+
+    std::string keyfile = certificate_key_list[i];
+    std::string outfile = base::StringPrintf(
+                         "/tmp/.%d-%p-%lu.pkcs8",
+                         getpid(), certificate_key_list[i], time(0));
+    pkcs8_paths.push_back(outfile);
+    bool had_key2pkcs8 = ngx_try_key2pkcs8(certificate_key_list[i],
+                                           outfile.c_str());
+    if (had_key2pkcs8) {
+      keyfile = outfile;
+    }
+    
+    proof_source->Initialize(base::FilePath(certificate_list[i]),
+                             base::FilePath(keyfile), base::FilePath());    
+  }
+
   quic::QuicConfig config;
   quic::QuicTagVector connection_options;
   connection_options.push_back(quic::k5RTO);
   // config.SetConnectionOptionsToSend(connection_options);
   config.SetInitialReceivedConnectionOptions(connection_options);
+  
   quic::QuicNgxServer* server =
-    new quic::QuicNgxServer(quic::CreateDefaultProofSource(),
+    new quic::QuicNgxServer(/*quic::CreateDefaultProofSource(),*/
+                            std::move(proof_source),
                             config,
                             backend,
                             idle_network_timeout);
@@ -128,7 +142,9 @@ void* ngx_init_quic(void* ngx_module_context,
                      del_ngx_timer,
                      free_ngx_timer);
   
-  ::remove(outfile.c_str());
+  for (auto pkcs8_path : pkcs8_paths) {
+    ::remove(pkcs8_path.c_str());
+  }
   
   return server;
 }
