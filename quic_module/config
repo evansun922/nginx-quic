@@ -13,6 +13,7 @@ QUIC_SRCS="                                                             \
         $ngx_addon_dir/chromium/quic_ngx_stream.cc                      \
         $ngx_addon_dir/chromium/quic_ngx_packet_reader.cc               \
         $ngx_addon_dir/chromium/quic_ngx_packet_writer.cc               \
+        $ngx_addon_dir/chromium/proof_source_nginx.cc                   \
         "
 
 
