@@ -91,19 +91,21 @@ void* ngx_init_quic(void* ngx_module_context,
     SetQuicReloadableFlag(quic_default_to_bbr_v2, true);
   }
 
-  // TODO
+  quic::ParsedQuicVersionVector supported_versions;
   if (ietf_draft) {
     quic::QuicVersionInitializeSupportForIetfDraft();
-    quic::QuicEnableVersion(
-          quic::ParsedQuicVersion(
-                quic::PROTOCOL_TLS1_3, quic::QUIC_VERSION_99));
+    quic::ParsedQuicVersion version(quic::PROTOCOL_TLS1_3, quic::QUIC_VERSION_99);
+    quic::QuicEnableVersion(version);
+    supported_versions = {version};
+  } else {
+    supported_versions = quic::AllSupportedVersions();
   }
   
   quic::QuicNgxBackend* backend = new quic::QuicNgxBackend();
   backend->InitializeBackend("");
   backend->set_ngx_args(req_quic_2_ngx, set_stream_for_ngx);
 
-  auto proof_source = std::make_unique<net::ProofSourceNginx>();
+  auto proof_source = std::make_unique<quic::ProofSourceNginx>();
   for (int i = 0; certificate_list[i] && certificate_key_list[i]; i++) {
 
     std::string keyfile = certificate_key_list[i];
@@ -131,6 +133,7 @@ void* ngx_init_quic(void* ngx_module_context,
     new quic::QuicNgxServer(/*quic::CreateDefaultProofSource(),*/
                             std::move(proof_source),
                             config,
+                            supported_versions,
                             backend,
                             idle_network_timeout);
   server->Initialize(ngx_module_context,

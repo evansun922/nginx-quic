@@ -1,6 +1,7 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
+
+/*
+ * Copyright (C) sunlei
+ */
 
 #include "proof_source_nginx.h"
 
@@ -13,8 +14,9 @@
 #include "third_party/boringssl/src/include/openssl/rsa.h"
 
 using std::string;
+using namespace net;
 
-namespace net {
+namespace quic {
 
 ProofSourceNginx::ProofItem::ProofItem() = default;
 ProofSourceNginx::ProofItem::~ProofItem() = default;

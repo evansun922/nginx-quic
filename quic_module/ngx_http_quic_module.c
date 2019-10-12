@@ -32,18 +32,11 @@ static ngx_int_t ngx_http_variable_quic_scheme(ngx_http_request_t *r,
 
 
 
-char *
-ngx_conf_set_str_array_slot_my(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
-{
-  return ngx_conf_set_str_array_slot(cf, cmd, conf);
-}
-
-
 static ngx_command_t  ngx_http_quic_commands[] = {
 
   { ngx_string("quic_ssl_certificate"),
     NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_CONF_TAKE1,
-    ngx_conf_set_str_array_slot_my,
+    ngx_conf_set_str_array_slot,
     NGX_HTTP_SRV_CONF_OFFSET,
     offsetof(ngx_http_quic_srv_conf_t, certificates),
     NULL },

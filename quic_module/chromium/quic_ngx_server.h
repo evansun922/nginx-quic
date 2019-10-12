@@ -33,6 +33,7 @@ class QuicNgxServer {
                 int idle_network_timeout);
   QuicNgxServer(std::unique_ptr<ProofSource> proof_source,
                 const QuicConfig& config,
+                const ParsedQuicVersionVector& supported_versions,
                 QuicNgxBackend* quic_ngx_server_backend,
                 int idle_network_timeout);
   QuicNgxServer(std::unique_ptr<ProofSource> proof_source,

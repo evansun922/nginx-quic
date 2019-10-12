@@ -1,6 +1,7 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
+
+/*
+ * Copyright (C) sunlei
+ */
 
 #ifndef NET_QUIC_CRYPTO_PROOF_SOURCE_NGINX_H_
 #define NET_QUIC_CRYPTO_PROOF_SOURCE_NGINX_H_
@@ -16,7 +17,7 @@
 #include "net/cert/x509_certificate.h"
 #include "net/third_party/quiche/src/quic/core/crypto/proof_source.h"
 
-namespace net {
+namespace quic {
 
 // ProofSourceChromium implements the QUIC quic::ProofSource interface.
 // TODO(rtenneti): implement details of this class.
