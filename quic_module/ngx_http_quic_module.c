@@ -320,9 +320,11 @@ ngx_http_quic_process_init(ngx_cycle_t *cycle)
 
       for (s = 0; s < cmcf->servers.nelts; s++) {
 
+        qscf = cscfp[s]->ctx->srv_conf[ngx_http_quic_module.ctx_index];
+        
         if (!qscf->certificates || !qscf->certificate_keys) {
-          ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
-                        "certificates or certificate_keys is empty.");
+          // ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
+          //               "certificates or certificate_keys is empty.");
           continue;
         }
 
@@ -333,7 +335,6 @@ ngx_http_quic_process_init(ngx_cycle_t *cycle)
           return NGX_ERROR;
         }
         
-        qscf = cscfp[s]->ctx->srv_conf[ngx_http_quic_module.ctx_index];
         cert = qscf->certificates->elts;
         key = qscf->certificate_keys->elts;
         nelts = qscf->certificates->nelts;
