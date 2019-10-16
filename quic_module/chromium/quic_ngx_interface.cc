@@ -24,7 +24,6 @@
 #include "proof_source_nginx.h"
 
 
-static bool ngx_try_key2pkcs8(const char* in_file, const char* out_file);
 
 #define set_ngx_quic_args(argc, argv, v)                \
   argv[argc] = new char[(v).length()+1];                \
@@ -48,7 +47,6 @@ void* ngx_init_quic(void* ngx_module_context,
                     int ietf_draft,
                     int idle_network_timeout) {
   // base::AtExitManager exit_manager;
-  std::vector<std::string> pkcs8_paths;
   
   int quic_argc = 0;
   char *quic_argv[10];
@@ -107,20 +105,10 @@ void* ngx_init_quic(void* ngx_module_context,
 
   auto proof_source = std::make_unique<quic::ProofSourceNginx>();
   for (int i = 0; certificate_list[i] && certificate_key_list[i]; i++) {
-
-    std::string keyfile = certificate_key_list[i];
-    std::string outfile = base::StringPrintf(
-                         "/tmp/.%d-%p-%lu.pkcs8",
-                         getpid(), certificate_key_list[i], time(0));
-    pkcs8_paths.push_back(outfile);
-    bool had_key2pkcs8 = ngx_try_key2pkcs8(certificate_key_list[i],
-                                           outfile.c_str());
-    if (had_key2pkcs8) {
-      keyfile = outfile;
-    }
     
     proof_source->Initialize(base::FilePath(certificate_list[i]),
-                             base::FilePath(keyfile), base::FilePath());    
+                             base::FilePath(certificate_key_list[i]),
+                             base::FilePath());    
   }
 
   quic::QuicConfig config;
@@ -144,10 +132,6 @@ void* ngx_init_quic(void* ngx_module_context,
                      add_ngx_timer,
                      del_ngx_timer,
                      free_ngx_timer);
-  
-  for (auto pkcs8_path : pkcs8_paths) {
-    ::remove(pkcs8_path.c_str());
-  }
   
   return server;
 }
@@ -224,84 +208,5 @@ void ngx_set_nc_for_quic_stream(void* quic_stream,
   quic::QuicNgxStream *stream =
     reinterpret_cast<quic::QuicNgxStream*>(quic_stream);
   stream->set_ngx_connection(ngx_connection);
-}
-
-static bool ngx_try_key2pkcs8(const char* in_file, const char* out_file) {
-
-  BIO *in, *out, *key;
-  EVP_PKEY *pkey;
-  FILE *fp;
-  PKCS8_PRIV_KEY_INFO *p8inf;
-  bool rs = true;
-
-  in = NULL;
-  out = NULL;
-  key = NULL;
-  pkey = NULL;
-  fp = NULL;
-  p8inf = NULL;
-  
-  in = BIO_new_file(in_file, "r");
-  if (in == NULL) {
-    rs = false;
-    goto key2pkcs8_end;
-  }
-  
-  fp = fopen(out_file, "wb");
-  if (fp == NULL) {
-    rs = false;
-    goto key2pkcs8_end;
-  }
-  
-  out = BIO_new_fp(fp, BIO_CLOSE);
-  if (out == NULL) {
-    rs = false;
-    goto key2pkcs8_end;
-  }
-
-  key = BIO_new_file(in_file, "r");
-  if (key == NULL) {
-    rs = false;
-    goto key2pkcs8_end;
-  }
-
-  pkey = PEM_read_bio_PrivateKey(key, NULL, NULL, NULL);
-  if (pkey == NULL) {
-    rs = false;
-    goto key2pkcs8_end;
-  }
-
-  p8inf = EVP_PKEY2PKCS8(pkey);
-  if (p8inf == NULL) {
-    rs = false;
-    goto key2pkcs8_end;
-  }
-
-  i2d_PKCS8_PRIV_KEY_INFO_bio(out, p8inf);
-  
- key2pkcs8_end:
-  if (p8inf) {
-    PKCS8_PRIV_KEY_INFO_free(p8inf);
-  }
-
-  if (pkey) {
-    EVP_PKEY_free(pkey);
-  }
-
-  if (out) {
-    BIO_free_all(out);
-  } else if (fp) {
-    fclose(fp);
-  }
-
-  if (in) {
-    BIO_free(in);
-  }
-
-  if (key) {
-    BIO_free(key);
-  }
-
-  return rs;
 }
 

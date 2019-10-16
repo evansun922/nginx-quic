@@ -12,6 +12,8 @@
 #include "third_party/boringssl/src/include/openssl/digest.h"
 #include "third_party/boringssl/src/include/openssl/evp.h"
 #include "third_party/boringssl/src/include/openssl/rsa.h"
+#include "third_party/boringssl/src/include/openssl/bio.h"
+#include "third_party/boringssl/src/include/openssl/pem.h"
 
 using std::string;
 using namespace net;
@@ -73,9 +75,32 @@ bool ProofSourceNginx::Initialize(const base::FilePath& cert_path,
     return false;
   }
 
-  const uint8_t* p = reinterpret_cast<const uint8_t*>(key_data.data());
-  std::vector<uint8_t> input(p, p + key_data.size());
-  proof_item->private_key = crypto::RSAPrivateKey::CreateFromPrivateKeyInfo(input);
+  if (memcmp(key_data.data(),
+             "-----BEGIN RSA PRIVATE KEY-----",
+             sizeof("-----BEGIN RSA PRIVATE KEY-----")-1) == 0) {
+    bssl::UniquePtr<BIO> bio(BIO_new_mem_buf(
+                                const_cast<char*>(key_data.data()),
+                                static_cast<int>(key_data.size())));
+    if (!bio) {
+      LOG(ERROR) << "Could not allocate BIO for buffer?";
+      return false;
+    }
+
+    bssl::UniquePtr<EVP_PKEY> pkey(
+           PEM_read_bio_PrivateKey(bio.get(), nullptr, nullptr, nullptr));
+    if (!pkey) {
+      LOG(ERROR) << "Could not decode private key file: " << key_path.value();
+      return false;
+    }
+
+    proof_item->private_key = crypto::RSAPrivateKey::CreateFromKey(pkey.get());
+  } else {
+
+    const uint8_t* p = reinterpret_cast<const uint8_t*>(key_data.data());
+    std::vector<uint8_t> input(p, p + key_data.size());
+    proof_item->private_key = crypto::RSAPrivateKey::CreateFromPrivateKeyInfo(input);
+  }
+  
   if (!proof_item->private_key) {
     DLOG(FATAL) << "Unable to create private key.";
     return false;
