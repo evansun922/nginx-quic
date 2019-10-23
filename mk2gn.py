@@ -242,7 +242,7 @@ if __name__ == '__main__':
             if line == "":
                 break
 
-            if line.find("""  executable("quic_client_for_interop_test") """) == 0:
+            if line.find("""  executable("quic_client_interop_test") """) == 0:
                 out_fd.writelines("""  executable("nginx") {\n""")
         
                 out_fd.writelines("""    sources = [\n""")
