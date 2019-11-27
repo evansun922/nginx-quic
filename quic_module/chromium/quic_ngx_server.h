@@ -56,7 +56,8 @@ class QuicNgxServer {
                   CreateNgxTimer create_ngx_timer,
                   AddNgxTimer add_ngx_timer,
                   DelNgxTimer del_ngx_timer,
-                  FreeNgxTimer free_ngx_timer);
+                  FreeNgxTimer free_ngx_timer,
+                  SetEPOLLOUT set_epoll_out);
 
   void ReadAndDispatchPackets(void* ngx_connection);
 
@@ -67,6 +68,8 @@ class QuicNgxServer {
   bool CanWrite();
   
   void Shutdown();
+
+  void OnWriteBlocked();
 
   void SetChloMultiplier(size_t multiplier) {
     crypto_config_.set_chlo_multiplier(multiplier);
@@ -161,6 +164,9 @@ class QuicNgxServer {
 
   // Owned by nginx.
   void* ngx_module_context_;
+
+  // set EPOLLOUT in nginx
+  SetEPOLLOUT set_epoll_out_;
 };
 
 }  // namespace quic

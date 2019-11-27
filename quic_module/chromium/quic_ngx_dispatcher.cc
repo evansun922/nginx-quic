@@ -5,6 +5,8 @@
 
 #include "quic_ngx_dispatcher.h"
 #include "quic_ngx_session.h"
+#include "quic_ngx_server.h"
+#include "quic_ngx_backend.h"
 
 namespace quic {
 
@@ -29,6 +31,14 @@ QuicNgxDispatcher::QuicNgxDispatcher(
 
 QuicNgxDispatcher::~QuicNgxDispatcher() = default;
 
+void QuicNgxDispatcher::OnWriteBlocked(QuicBlockedWriterInterface* blocked_writer) {
+  QuicSimpleDispatcher::OnWriteBlocked(blocked_writer);
+
+  QuicNgxBackend *backend = reinterpret_cast<QuicNgxBackend*>(server_backend());
+  QuicNgxServer *server = backend->get_server();
+  server->OnWriteBlocked();
+}
+  
 QuicServerSessionBase* QuicNgxDispatcher::CreateQuicSession(
     QuicConnectionId connection_id,
     const QuicSocketAddress& client_address,

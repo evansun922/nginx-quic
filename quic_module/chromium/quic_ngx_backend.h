@@ -24,6 +24,7 @@
 
 namespace quic {
 
+class QuicNgxServer;
   
 class QuicNgxBackend : public QuicSimpleServerBackend {
  public:
@@ -53,6 +54,12 @@ class QuicNgxBackend : public QuicSimpleServerBackend {
     request_quic_2_ngx_ = request_quic_2_ngx;
     set_stream_for_ngx_ = set_stream_for_ngx;
   }
+  QuicNgxServer *get_server() {
+    return quic_ngx_server_;
+  }
+  void set_server(QuicNgxServer *server) {
+    quic_ngx_server_ = server;
+  }
   
  private:
 
@@ -60,6 +67,8 @@ class QuicNgxBackend : public QuicSimpleServerBackend {
   void *cur_ngx_connection_; // unowned;
   RequestHttpQuic2Ngx request_quic_2_ngx_;
   SetStreamForNgx set_stream_for_ngx_;
+
+  QuicNgxServer *quic_ngx_server_; // unowned;
 };
 
 }  // namespace quic

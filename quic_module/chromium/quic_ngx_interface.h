@@ -46,6 +46,8 @@ typedef void(*RequestHttpQuic2Ngx)(void* ngx_connection,
 typedef void(*SetStreamForNgx)(void* ngx_request, /*ngx_http_request_t*/
                                void* quic_stream);
 
+typedef void(*SetEPOLLOUT)(void* module_context);
+
 
   
 void* ngx_init_quic(void* ngx_module_context,
@@ -58,6 +60,7 @@ void* ngx_init_quic(void* ngx_module_context,
                     FreeNgxTimer free_ngx_timer,
                     RequestHttpQuic2Ngx req_quic_2_ngx,
                     SetStreamForNgx set_stream_for_ngx,
+                    SetEPOLLOUT set_epoll_out,
                     char **certificate_list,
                     char **certificate_key_list,
                     int bbr,
@@ -72,6 +75,8 @@ void ngx_read_dispatch_packets(void* chromium_server, void* ngx_connection);
 
 ssize_t ngx_send_quic_packets(void* quic_stream,
                               const char*data, int len);
+
+size_t ngx_stream_buffered_size(void* quic_stream);
 
 int ngx_flush_cache_packets(void* chromium_server);
 

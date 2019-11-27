@@ -90,7 +90,8 @@ QuicNgxServer::QuicNgxServer(
     helper_(new net::QuicChromiumConnectionHelper(&clock_,
             quic::QuicRandom::GetInstance())),
     writer_(nullptr),
-    ngx_module_context_(nullptr) {
+    ngx_module_context_(nullptr),
+    set_epoll_out_(nullptr) {
   if (-1 != idle_network_timeout) {
     config_.SetIdleNetworkTimeout(QuicTime::Delta::FromSeconds(idle_network_timeout),
                                   QuicTime::Delta::FromSeconds(idle_network_timeout/2));
@@ -106,7 +107,8 @@ void QuicNgxServer::Initialize(void* ngx_module_context,
                                CreateNgxTimer create_ngx_timer,
                                AddNgxTimer add_ngx_timer,
                                DelNgxTimer del_ngx_timer,
-                               FreeNgxTimer free_ngx_timer) {
+                               FreeNgxTimer free_ngx_timer,
+                               SetEPOLLOUT set_epoll_out) {
   // If an initial flow control window has not explicitly been set, then use a
   // sensible value for a server: 1 MB for session, 64 KB for each stream.
   const uint32_t kInitialSessionFlowControlWindow = 1 * 1024 * 1024;  // 1 MB
@@ -123,6 +125,7 @@ void QuicNgxServer::Initialize(void* ngx_module_context,
   }
 
   ngx_module_context_ = ngx_module_context;
+  set_epoll_out_ = set_epoll_out;
   fd_ = listen_fd;
   port_ = port;
 
@@ -227,6 +230,10 @@ void QuicNgxServer::Shutdown() {
     // to notify clients that they're closing.
     dispatcher_->Shutdown();
   }
+}
+
+void QuicNgxServer::OnWriteBlocked() {
+  set_epoll_out_(ngx_module_context_);
 }
 
 

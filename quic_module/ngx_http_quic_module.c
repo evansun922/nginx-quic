@@ -34,14 +34,14 @@ static ngx_int_t ngx_http_variable_quic_scheme(ngx_http_request_t *r,
 
 static ngx_command_t  ngx_http_quic_commands[] = {
 
-  { ngx_string("quic_ssl_certificate"),
+  { ngx_string("ssl_certificate"),
     NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_CONF_TAKE1,
     ngx_conf_set_str_array_slot,
     NGX_HTTP_SRV_CONF_OFFSET,
     offsetof(ngx_http_quic_srv_conf_t, certificates),
     NULL },
 
-  { ngx_string("quic_ssl_certificate_key"),
+  { ngx_string("ssl_certificate_key"),
     NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_CONF_TAKE1,
     ngx_conf_set_str_array_slot,
     NGX_HTTP_SRV_CONF_OFFSET,
@@ -75,6 +75,13 @@ static ngx_command_t  ngx_http_quic_commands[] = {
     NGX_HTTP_SRV_CONF_OFFSET,
     offsetof(ngx_http_quic_srv_conf_t, idle_network_timeout),
     NULL },
+
+  { ngx_string("quic_stream_buffered_size"),
+    NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
+    ngx_conf_set_size_slot,
+    NGX_HTTP_SRV_CONF_OFFSET,
+    offsetof(ngx_http_quic_srv_conf_t, stream_buffered_size),
+    NULL },  
 
   ngx_null_command
 };
@@ -128,11 +135,13 @@ ngx_http_quic_add_variables(ngx_conf_t *cf)
   ngx_uint_t                  i;
   ngx_str_t                   scheme_name = ngx_string("scheme");
 
+
   // we must reset scheme variable's get_handler = ngx_http_variable_quic_scheme,
   cmcf = ngx_http_conf_get_module_main_conf(cf, ngx_http_core_module);
 
   key = cmcf->variables_keys->keys.elts;
   for (i = 0; i < cmcf->variables_keys->keys.nelts; i++) {
+    
     if (scheme_name.len != key[i].key.len
         || ngx_strncasecmp(scheme_name.data, key[i].key.data, scheme_name.len) != 0)
     {
@@ -243,7 +252,7 @@ ngx_http_quic_process_init(ngx_cycle_t *cycle)
 
   ngx_http_core_main_conf_t       *cmcf;
   ngx_http_core_srv_conf_t        **cscfp;
-  
+  ngx_http_ssl_srv_conf_t         *sscf;  
   
   ls = cycle->listening.elts;
   for (i = 0; i < cycle->listening.nelts; i++) {
@@ -308,6 +317,7 @@ ngx_http_quic_process_init(ngx_cycle_t *cycle)
       }
 
       quic_ctx->flush_interval = qscf->flush_interval;
+      quic_ctx->stream_buffered_size = qscf->stream_buffered_size;
 
       //
       certificate_ary = ngx_array_create(pool, 4, sizeof(ngx_str_t));
@@ -323,8 +333,6 @@ ngx_http_quic_process_init(ngx_cycle_t *cycle)
         qscf = cscfp[s]->ctx->srv_conf[ngx_http_quic_module.ctx_index];
         
         if (!qscf->certificates || !qscf->certificate_keys) {
-          // ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
-          //               "certificates or certificate_keys is empty.");
           continue;
         }
 
@@ -351,9 +359,43 @@ ngx_http_quic_process_init(ngx_cycle_t *cycle)
       nelts = certificate_ary->nelts;
       
       if (nelts == 0) {
-        ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
-                      "certificates or certificate_keys is empty.");
-        return NGX_ERROR;
+        // find certificates from ngx_http_ssl_module
+        for (s = 0; s < cmcf->servers.nelts; s++) {
+
+          sscf = cscfp[s]->ctx->srv_conf[ngx_http_ssl_module.ctx_index];
+        
+          if (!sscf->certificates || !sscf->certificate_keys) {
+            continue;
+          }
+
+          if (sscf->certificates->nelts != sscf->certificate_keys->nelts) {
+            ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
+                          "certificates of count(%u) != certificate_keys of count(%u).",
+                          sscf->certificates->nelts, sscf->certificate_keys->nelts);
+            return NGX_ERROR;
+          }
+        
+          cert = sscf->certificates->elts;
+          key = sscf->certificate_keys->elts;
+          nelts = sscf->certificates->nelts;
+
+          for (j = 0; j < nelts; j++) {
+            str = ngx_array_push(certificate_ary);
+            *str = cert[j];
+
+            str = ngx_array_push(certificate_key_ary);
+            *str = key[j];
+          }
+        }
+
+        nelts = certificate_ary->nelts;
+      
+        if (nelts == 0) {
+          ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
+                        "certificates or certificate_keys is empty.");
+          return NGX_ERROR;
+        }
+        
       }
       
       cert = certificate_ary->elts;
@@ -506,7 +548,8 @@ ngx_http_quic_create_srv_conf(ngx_conf_t *cf)
   qscf->ietf_draft           = NGX_CONF_UNSET;
   qscf->flush_interval       = NGX_CONF_UNSET_SIZE;
   qscf->idle_network_timeout = NGX_CONF_UNSET;
-
+  qscf->stream_buffered_size = NGX_CONF_UNSET_SIZE;
+  
 
   return qscf;
 }
@@ -531,6 +574,9 @@ ngx_http_quic_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
   ngx_conf_merge_size_value(conf->flush_interval, prev->flush_interval, 40);
 
   ngx_conf_merge_value(conf->idle_network_timeout, prev->idle_network_timeout, -1);
+
+  ngx_conf_merge_size_value(conf->stream_buffered_size,
+                            prev->stream_buffered_size, 10*1024*1024);
   
   return NGX_CONF_OK;
 }
@@ -608,6 +654,7 @@ ngx_http_quic_check_and_rewrite_handler(ngx_cycle_t *cycle,
   return NGX_OK;
 }
 
+
 static void
 ngx_do_quic_interval(ngx_event_t *ev) {
 
@@ -625,8 +672,9 @@ ngx_do_quic_interval(ngx_event_t *ev) {
   }
 
 
-  if (ngx_flush_cache_packets(quic_ctx->chromium_server) == NGX_AGAIN &&
-      quic_ctx->lc) {
+  if ((ngx_flush_cache_packets(quic_ctx->chromium_server) == NGX_AGAIN ||
+       ngx_can_write(quic_ctx->chromium_server) == NGX_AGAIN)
+      && quic_ctx->lc) {
     ngx_add_event(quic_ctx->lc->write, NGX_WRITE_EVENT, NGX_LEVEL_EVENT);
   }
   

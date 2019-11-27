@@ -41,6 +41,7 @@ void* ngx_init_quic(void* ngx_module_context,
                     FreeNgxTimer free_ngx_timer,
                     RequestHttpQuic2Ngx req_quic_2_ngx,
                     SetStreamForNgx set_stream_for_ngx,
+                    SetEPOLLOUT set_epoll_out,
                     char **certificate_list,
                     char **certificate_key_list,
                     int bbr,
@@ -124,6 +125,7 @@ void* ngx_init_quic(void* ngx_module_context,
                             supported_versions,
                             backend,
                             idle_network_timeout);
+  backend->set_server(server);
   server->Initialize(ngx_module_context,
                      listen_fd,
                      port,
@@ -131,7 +133,8 @@ void* ngx_init_quic(void* ngx_module_context,
                      create_ngx_timer,
                      add_ngx_timer,
                      del_ngx_timer,
-                     free_ngx_timer);
+                     free_ngx_timer,
+                     set_epoll_out);
   
   return server;
 }
@@ -178,7 +181,21 @@ ssize_t ngx_send_quic_packets(void* quic_stream,
     stream->SendHttpbody(data, len);
   }
 
+  uint64_t ddd = 0;
+  ddd = stream->BufferedDataBytes();
+
   return len;
+}
+
+size_t ngx_stream_buffered_size(void* quic_stream) {
+  if (!quic_stream) {
+    return 0;
+  }
+  
+  quic::QuicNgxStream *stream =
+    reinterpret_cast<quic::QuicNgxStream*>(quic_stream);
+
+  return stream->BufferedDataBytes();
 }
 
 int ngx_flush_cache_packets(void* chromium_server) {
