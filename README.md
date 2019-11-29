@@ -73,8 +73,8 @@ The compilation needs to be carried out under ubuntu 14, which can be compiled u
 >               server {
 >                    listen              443 quic reuseport  sndbuf=1048576 rcvbuf=1048576;
  >                   
- >                   quic_ssl_certificate                 ssl/tv.test.com.crt;
- >                   quic_ssl_certificate_key       ssl/tv.test.com.pkcs8;
+ >                   ssl_certificate           ssl/tv.test.com.crt;
+ >                   ssl_certificate_key       ssl/tv.test.com.pkcs8;
 >
 >
 >
@@ -90,16 +90,10 @@ Example:             listen       443 quic reuseport sndbuf=1048576 rcvbuf=10485
 add flag "quic" of "listen" for using quic ,  when you use flag "quic", be sure to bring the flag "reuseport" and you can not used "ssl" or "http2" at the same time.
 
 
-Syntax:        quic_ssl_certificate       /path/to/tv.test.com.crt;
-Default:        — 
+Syntax:       quic_stream_buffered_size   10485760;
+Default:      10485760 
 Context:      server
- ssl-certificate of quic. 
-
-
-Syntax:               quic_ssl_certificate_key          /path/to/tv.test.com.pkcs8;
-Default:              —
-Context:             server
- ssl-certificate's key of quic. 
+send cache size of quic stream.
 
 
 Syntax:            quic_bbr      on | off;

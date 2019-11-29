@@ -21,6 +21,7 @@ typedef struct {
   ngx_flag_t                ietf_draft;
   size_t                    flush_interval;  // millisecond
   time_t                    idle_network_timeout; // seconds
+  size_t                    stream_buffered_size;
 } ngx_http_quic_srv_conf_t;
 
 
@@ -30,6 +31,7 @@ typedef struct {
   ngx_event_t      ngx_quic_interval_event;
   size_t           flush_interval;
   void             *chromium_server;
+  size_t           stream_buffered_size;
 } ngx_http_quic_context_t;
 
 

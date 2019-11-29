@@ -24,6 +24,11 @@ class QuicNgxDispatcher : public QuicSimpleDispatcher {
 
   ~QuicNgxDispatcher() override;
 
+  // QuicSession::Visitor interface implementation (via inheritance of
+  // QuicTimeWaitListManager::Visitor):
+  // Queues the blocked writer for later resumption.
+  void OnWriteBlocked(QuicBlockedWriterInterface* blocked_writer) override;
+
  protected:
   QuicServerSessionBase* CreateQuicSession(
       QuicConnectionId connection_id,

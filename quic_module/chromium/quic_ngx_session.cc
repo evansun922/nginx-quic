@@ -5,7 +5,7 @@
 
 #include "quic_ngx_session.h"
 #include "quic_ngx_stream.h"
-
+#include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 
 namespace quic {
 

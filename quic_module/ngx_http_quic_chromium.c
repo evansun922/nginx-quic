@@ -34,6 +34,7 @@ static void ngx_http_quic_FreeNgxTimer(void *ngx_timer);
 static ngx_chain_t *ngx_quic_send_chain(ngx_connection_t *c, ngx_chain_t *in, off_t limit);
 static ssize_t ngx_quic_shared_recv(ngx_connection_t *c, u_char *buf, size_t size);
 static void ngx_http_quic_set_stream_for_connection(void* ngx_request, void* quic_stream);
+static void ngx_http_set_epoll_out(void *module_context);
 
 static void ngx_http_quic_clean_connection(void *data);
 
@@ -60,6 +61,7 @@ ngx_http_quic_init_chromium(ngx_http_quic_context_t *module_context,
                        ngx_http_quic_FreeNgxTimer,
                        ngx_http_quic_request_quic_2_ngx_in_chromium,
                        ngx_http_quic_set_stream_for_connection,
+                       ngx_http_set_epoll_out,
                        certificate_list,
                        certificate_key_list,
                        bbr,
@@ -114,7 +116,7 @@ ngx_event_quic_can_sendmsg(ngx_event_t *ev)
 
   lc = ev->data;
   quic_ctx = lc->data;
-
+  
   if (ngx_can_write(quic_ctx->chromium_server) == NGX_OK &&
       lc->write->active) {
     ngx_del_event(ev, NGX_WRITE_EVENT, NGX_LEVEL_EVENT);
@@ -326,16 +328,16 @@ ngx_http_quic_CreateNgxTimer(void *module_context,
                             void *chromium_alarm,
                             OnChromiumAlarm onChromiumAlarm)
 {
-  ngx_http_quic_context_t *quic_cxt;
+  ngx_http_quic_context_t *quic_ctx;
   chromium_alarm_t        *ca;
 
-  quic_cxt = module_context;
-  ca       = ngx_calloc(sizeof(chromium_alarm_t), quic_cxt->pool->log);
+  quic_ctx = module_context;
+  ca       = ngx_calloc(sizeof(chromium_alarm_t), quic_ctx->pool->log);
 
   ca->chromium_alarm   = chromium_alarm;
   ca->onChromiumAlarm  = onChromiumAlarm;
   ca->ev.handler       = ngx_do_chromium_alarm;
-  ca->ev.log           = quic_cxt->pool->log;
+  ca->ev.log           = quic_ctx->pool->log;
   ca->ev.data          = ca;
   
   return ca;
@@ -347,12 +349,12 @@ ngx_http_quic_AddNgxTimer(void *module_context,
                           void *ngx_timer,
                           int64_t delay)
 {
-  ngx_http_quic_context_t *quic_cxt;
+  ngx_http_quic_context_t *quic_ctx;
   chromium_alarm_t        *ca;
 
-  quic_cxt             = module_context;
+  quic_ctx             = module_context;
   ca                   = ngx_timer;
-  ca->ev.log           = quic_cxt->pool->log;
+  ca->ev.log           = quic_ctx->pool->log;
   ngx_add_timer(&ca->ev, delay);
   ca->ev.timer_set = 1;
 }
@@ -361,10 +363,10 @@ ngx_http_quic_AddNgxTimer(void *module_context,
 static void
 ngx_http_quic_DelNgxTimer(void *module_context, void *ngx_timer)
 {
-  ngx_http_quic_context_t *quic_cxt;
+  ngx_http_quic_context_t *quic_ctx;
   chromium_alarm_t        *ca;
 
-  quic_cxt = module_context;
+  quic_ctx = module_context;
   ca = ngx_timer;
   if (ca->ev.timer_set == 1) {
     ngx_del_timer(&ca->ev);
@@ -385,12 +387,14 @@ ngx_http_quic_FreeNgxTimer(void *ngx_timer)
 static ngx_chain_t *
 ngx_quic_send_chain(ngx_connection_t *c, ngx_chain_t *in, off_t limit)
 {
-  off_t                    send;
+  off_t                    send, old_limit;
   size_t                   size;
-  ngx_event_t              *wev;
-  u_char                   *buf;
+  ngx_event_t             *wev;
+  u_char                  *buf;
   ssize_t                  n;
-  
+  ngx_connection_t        *lc;
+  ngx_http_quic_context_t *quic_ctx;
+  size_t                  stream_buffered_size;
 
   wev = c->write;
 
@@ -398,10 +402,23 @@ ngx_quic_send_chain(ngx_connection_t *c, ngx_chain_t *in, off_t limit)
     return in;
   }
 
-  /* the maximum limit size is 2G-1 - the page size */
+  old_limit = limit;
+  lc = c->listening->connection;
+  quic_ctx = lc->data;
 
-  if (limit == 0 || limit > (off_t) (NGX_SENDFILE_MAXSIZE - ngx_pagesize)) {
-    limit = NGX_SENDFILE_MAXSIZE - ngx_pagesize;
+  stream_buffered_size = ngx_stream_buffered_size(c->quic_stream);
+  if (stream_buffered_size >= quic_ctx->stream_buffered_size) {
+    if (old_limit == 0 ) {
+      c->write->delayed = 1;
+      ngx_add_timer(c->write, 1);
+    }
+    return in;
+  }
+
+  stream_buffered_size = quic_ctx->stream_buffered_size - stream_buffered_size;
+  
+  if (limit == 0 || limit > (off_t)stream_buffered_size) {
+    limit = stream_buffered_size;
   }
 
   send = 0;
@@ -480,6 +497,10 @@ ngx_quic_send_chain(ngx_connection_t *c, ngx_chain_t *in, off_t limit)
     send += size;
 
     if (send >= limit) {
+      if (old_limit == 0 ) {
+        c->write->delayed = 1;
+        ngx_add_timer(c->write, 1);
+      }
       break;
     }
   }
@@ -527,6 +548,15 @@ ngx_http_quic_set_stream_for_connection(void* ngx_connection,
   ngx_connection_t  *c = ngx_connection;
   
   c->quic_stream = quic_stream;
+}
+
+static void
+ngx_http_set_epoll_out(void *module_context)
+{
+  ngx_http_quic_context_t *quic_ctx;
+
+  quic_ctx = module_context;
+  ngx_add_event(quic_ctx->lc->write, NGX_WRITE_EVENT, NGX_LEVEL_EVENT);
 }
 
 
