@@ -576,7 +576,7 @@ ngx_http_quic_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
   ngx_conf_merge_value(conf->idle_network_timeout, prev->idle_network_timeout, -1);
 
   ngx_conf_merge_size_value(conf->stream_buffered_size,
-                            prev->stream_buffered_size, 10*1024*1024);
+                            prev->stream_buffered_size, 1024*1024);
   
   return NGX_CONF_OK;
 }

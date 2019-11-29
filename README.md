@@ -90,8 +90,8 @@ Example:             listen       443 quic reuseport sndbuf=1048576 rcvbuf=10485
 add flag "quic" of "listen" for using quic ,  when you use flag "quic", be sure to bring the flag "reuseport" and you can not used "ssl" or "http2" at the same time.
 
 
-Syntax:       quic_stream_buffered_size   10485760;
-Default:      10485760 
+Syntax:       quic_stream_buffered_size   1048576;
+Default:      1048576 
 Context:      server
 send cache size of quic stream.
 

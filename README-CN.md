@@ -88,8 +88,8 @@ Example:             listen       443 quic reuseport sndbuf=1048576 rcvbuf=10485
 为listen配置新加一个参数quic， 只要带这个参数，这个监听就会使用quic协议，需要注意 quic 参数与ssl， http2参数不兼容，不可同时使用，使用quic参数，务必带上reuseport
 
 
-Syntax:       quic_stream_buffered_size   10485760; 
-Default:      10485760
+Syntax:       quic_stream_buffered_size   1048576;
+Default:      1048576
 Context:      server
 设置发送quic stream 发送缓存大小,单位字节，默认10M.
 
