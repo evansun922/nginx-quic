@@ -200,6 +200,10 @@ void QuicNgxServer::ReadAndDispatchPackets(void* ngx_connection) {
                fd_, port_, clock_, dispatcher_.get(),
                overflow_supported_ ? &packets_dropped_ : nullptr);
   }
+
+  if (dispatcher_->HasChlosBuffered()) {
+    dispatcher_->ProcessBufferedChlos(kNumSessionsToCreatePerSocketEvent);
+  }
 }
 
 bool QuicNgxServer::FlushWriteCache() {
