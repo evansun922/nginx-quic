@@ -93,11 +93,14 @@ void* ngx_init_quic(void* ngx_module_context,
   quic::ParsedQuicVersionVector supported_versions;
   if (ietf_draft) {
     quic::QuicVersionInitializeSupportForIetfDraft();
-    quic::ParsedQuicVersion version(quic::PROTOCOL_TLS1_3, quic::QUIC_VERSION_99);
-    quic::QuicEnableVersion(version);
-    supported_versions = {version};
+    supported_versions = {quic::ParsedQuicVersion(
+                          quic::PROTOCOL_TLS1_3,
+                          quic::QUIC_VERSION_99)};
   } else {
     supported_versions = quic::AllSupportedVersions();
+  }
+  for (const auto& version : supported_versions) {
+    QuicEnableVersion(version);
   }
   
   quic::QuicNgxBackend* backend = new quic::QuicNgxBackend();
