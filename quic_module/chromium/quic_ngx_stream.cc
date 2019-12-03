@@ -122,9 +122,9 @@ bool QuicNgxStream::SendHttpHeaders(const char* data, int len) {
   return true;
 }
 
-void QuicNgxStream::SendHttpbody(const char*data, int len) {
+bool QuicNgxStream::SendHttpbody(const char*data, int len) {
   if (fin_) {
-    return;
+    return true;
   }
   
   had_send_length_ += len;
@@ -133,13 +133,33 @@ void QuicNgxStream::SendHttpbody(const char*data, int len) {
     while (len > 0) {
 
       if (http_chunked_step_ == 0) {
-        http_chunked_step_ = 1;
+
+        int strtol_r_pos = -1;
+        for (int i = 0; i < len; i++) {
+          if (data[i] == '\r') {
+            strtol_r_pos = i;
+            break;
+          }
+        }
+
+        if (strtol_r_pos == -1) {
+          return false;
+        }
+        
         char *endptr = nullptr;
-        content_length_ = (size_t)::strtol(data, &endptr, 16);
+        long int strtol_value = ::strtol(data, &endptr, 16);
+        if (strtol_value == LONG_MIN ||
+            strtol_value == LONG_MAX ||
+            (endptr - data) != strtol_r_pos) {
+          return false;
+        }
+
+        http_chunked_step_ = 1;
+        content_length_ = (size_t)strtol_value;
         if (content_length_ == 0) {
           fin_ = true;
           WriteOrBufferBody("", true);
-          return;
+          return true;
         }
         
         int use_len = endptr - data + 2;
@@ -182,6 +202,8 @@ void QuicNgxStream::SendHttpbody(const char*data, int len) {
     fin_ = had_send_length_ == content_length_;
     WriteOrBufferBody(body, fin_);
   }
+
+  return true;
 }
   
 std::string QuicNgxStream::get_peer_ip() {

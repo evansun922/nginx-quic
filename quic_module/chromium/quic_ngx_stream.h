@@ -28,7 +28,7 @@ class QuicNgxStream : public QuicSimpleServerStream {
   ~QuicNgxStream() override;
 
   bool SendHttpHeaders(const char*data, int len);
-  void SendHttpbody(const char*data, int len);
+  bool SendHttpbody(const char*data, int len);
   
   void set_ngx_connection(void* ngx_connection) {
     ngx_connection_ = ngx_connection;

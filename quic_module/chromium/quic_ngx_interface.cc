@@ -181,11 +181,10 @@ ssize_t ngx_send_quic_packets(void* quic_stream,
       return -1;
     }
   } else {
-    stream->SendHttpbody(data, len);
+    if (stream->SendHttpbody(data, len) == false) {
+      return -1;
+    }
   }
-
-  uint64_t ddd = 0;
-  ddd = stream->BufferedDataBytes();
 
   return len;
 }
