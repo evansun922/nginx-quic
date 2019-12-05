@@ -396,6 +396,10 @@ ngx_quic_send_chain(ngx_connection_t *c, ngx_chain_t *in, off_t limit)
   ngx_http_quic_context_t *quic_ctx;
   size_t                  stream_buffered_size;
 
+  if (!c->quic_stream) {
+    return NGX_CHAIN_ERROR;
+  }
+
   wev = c->write;
 
   if (!wev->ready) {
@@ -502,6 +506,18 @@ ngx_quic_send_chain(ngx_connection_t *c, ngx_chain_t *in, off_t limit)
         ngx_add_timer(c->write, 1);
       }
       break;
+    }
+  }
+
+  if (in) {
+    if (in->buf->in_file &&
+        in->buf->file_last == in->buf->file_pos) {
+      return in->next;
+    }
+
+    if (ngx_buf_in_memory(in->buf) &&
+        in->buf->last == in->buf->pos) {
+      return in->next;
     }
   }
 

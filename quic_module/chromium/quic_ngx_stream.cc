@@ -17,7 +17,8 @@ QuicNgxStream::QuicNgxStream(
     : QuicSimpleServerStream(id, session, type, quic_simple_server_backend),
       ngx_connection_(nullptr),
       content_length_(-1), had_send_length_(0), is_http_chunked_(false),
-      http_chunked_step_(0), fin_(false), is_send_header_(false) {}
+      http_chunked_step_(0), fin_(false), is_send_header_(false),
+      chunked_buffered_size_(0) {}
 
 QuicNgxStream::QuicNgxStream(
     PendingStream* pending,
@@ -28,7 +29,8 @@ QuicNgxStream::QuicNgxStream(
                              type, quic_simple_server_backend),
       ngx_connection_(nullptr),
       content_length_(-1), had_send_length_(0), is_http_chunked_(false),
-      http_chunked_step_(0), fin_(false), is_send_header_(false) {}
+      http_chunked_step_(0), fin_(false), is_send_header_(false),
+      chunked_buffered_size_(0) {}
 
 QuicNgxStream::~QuicNgxStream() = default;
 
@@ -134,26 +136,47 @@ bool QuicNgxStream::SendHttpbody(const char*data, int len) {
 
       if (http_chunked_step_ == 0) {
 
-        int strtol_r_pos = -1;
-        for (int i = 0; i < len; i++) {
-          if (data[i] == '\r') {
-            strtol_r_pos = i;
+        bool find_n = false;
+        do {
+          
+          if (*data == '\n') {
+            len--;
+            data++;
+            find_n = true;
             break;
           }
+
+          if (*data == '\r') {
+            len--;
+            data++;
+            continue;
+          }
+
+          if (chunked_buffered_size_ >= MAX_CHUNKED_BUFFERED_SIZE) {
+            return false;
+          }
+
+          chunked_buffered_[chunked_buffered_size_] = *data;
+          chunked_buffered_size_++;
+          len--;
+          data++;
+          
+        } while(len > 0);
+
+        if (len == 0 && find_n == false) {
+          return true;
         }
 
-        if (strtol_r_pos == -1) {
+        chunked_buffered_[chunked_buffered_size_] = '\0';
+
+        char *endptr = nullptr;
+        long int strtol_value = ::strtol(chunked_buffered_, &endptr, 16);
+        if (strtol_value == LONG_MIN ||
+            strtol_value == LONG_MAX ||
+            (endptr - chunked_buffered_) != chunked_buffered_size_) {
           return false;
         }
         
-        char *endptr = nullptr;
-        long int strtol_value = ::strtol(data, &endptr, 16);
-        if (strtol_value == LONG_MIN ||
-            strtol_value == LONG_MAX ||
-            (endptr - data) != strtol_r_pos) {
-          return false;
-        }
-
         http_chunked_step_ = 1;
         content_length_ = (size_t)strtol_value;
         if (content_length_ == 0) {
@@ -162,10 +185,6 @@ bool QuicNgxStream::SendHttpbody(const char*data, int len) {
           return true;
         }
         
-        int use_len = endptr - data + 2;
-        data += use_len;
-        len -= use_len;
-
       } else if (http_chunked_step_ == 1) {
         
         int send_len = (int)content_length_;
@@ -190,6 +209,7 @@ bool QuicNgxStream::SendHttpbody(const char*data, int len) {
           len -= content_length_;
           content_length_ = 0;
           http_chunked_step_ = 0;
+          chunked_buffered_size_ = 0;
         } else {
           content_length_ -= len;
           len = 0;

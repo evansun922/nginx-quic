@@ -10,6 +10,7 @@
 
 namespace quic {
 
+#define MAX_CHUNKED_BUFFERED_SIZE 32
   
 // All this does right now is aggregate data, and on fin, send an HTTP
 // response.
@@ -54,6 +55,9 @@ class QuicNgxStream : public QuicSimpleServerStream {
   int http_chunked_step_; // 0-length, 1-data, 2-end(\r\n)
   bool fin_;
   bool is_send_header_;
+
+  char chunked_buffered_[MAX_CHUNKED_BUFFERED_SIZE];
+  int chunked_buffered_size_;
 };
 
 }  // namespace quic
