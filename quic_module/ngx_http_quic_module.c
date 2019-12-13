@@ -433,15 +433,15 @@ ngx_http_quic_process_init(ngx_cycle_t *cycle)
 
         if (access((char*)cert[j].data, F_OK) == -1) { 
           ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
-                        "quic_ssl_certificate file not exist, %V",
-                        &cert[j]);
+                        "quic ssl_certificate file \"%V\" check failed [%d] %s",
+                        &cert[j], errno, strerror(errno));
           return NGX_ERROR;
         }
 
         if (access((char*)key[j].data, F_OK) == -1) {
           ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
-                        "quic_ssl_certificate_key not exist, %V",
-                        &key[j]);
+                        "quic ssl_certificate_key \"%V\" check failed [%d] %s",
+                        &key[j], errno, strerror(errno));
           return NGX_ERROR;
         }
 

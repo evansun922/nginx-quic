@@ -68,7 +68,7 @@ class NET_EXPORT_PRIVATE ProofSourceNginx : public quic::ProofSource {
     ProofItem(const ProofItem&) = delete;
     ProofItem& operator=(const ProofItem&) = delete;
 
-    std::unique_ptr<crypto::RSAPrivateKey> private_key;
+    bssl::UniquePtr<EVP_PKEY> private_key;
     quic::QuicReferenceCountedPointer<quic::ProofSource::Chain> chain;
     std::string signed_certificate_timestamp;
   };

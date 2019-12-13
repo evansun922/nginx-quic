@@ -77,7 +77,10 @@ bool ProofSourceNginx::Initialize(const base::FilePath& cert_path,
 
   if (memcmp(key_data.data(),
              "-----BEGIN RSA PRIVATE KEY-----",
-             sizeof("-----BEGIN RSA PRIVATE KEY-----")-1) == 0) {
+             sizeof("-----BEGIN RSA PRIVATE KEY-----")-1) == 0 ||
+      memcmp(key_data.data(),
+             "-----BEGIN EC PRIVATE KEY-----",
+             sizeof("-----BEGIN EC PRIVATE KEY-----")-1) == 0) {
     bssl::UniquePtr<BIO> bio(BIO_new_mem_buf(
                                 const_cast<char*>(key_data.data()),
                                 static_cast<int>(key_data.size())));
@@ -93,15 +96,24 @@ bool ProofSourceNginx::Initialize(const base::FilePath& cert_path,
       return false;
     }
 
-    proof_item->private_key = crypto::RSAPrivateKey::CreateFromKey(pkey.get());
+    proof_item->private_key = bssl::UpRef(pkey.get());
+    
   } else {
 
     const uint8_t* p = reinterpret_cast<const uint8_t*>(key_data.data());
     std::vector<uint8_t> input(p, p + key_data.size());
-    proof_item->private_key = crypto::RSAPrivateKey::CreateFromPrivateKeyInfo(input);
+
+    CBS cbs;
+    CBS_init(&cbs, input.data(), input.size());
+    bssl::UniquePtr<EVP_PKEY> pkey(EVP_parse_private_key(&cbs));
+    if (!pkey || CBS_len(&cbs) != 0) {
+      return false;
+    }
+
+    proof_item->private_key = std::move(pkey);
   }
   
-  if (!proof_item->private_key) {
+  if (!proof_item->private_key.get()) {
     DLOG(FATAL) << "Unable to create private key.";
     return false;
   }
@@ -166,9 +178,10 @@ void ProofSourceNginx::ComputeTlsSignature(
   size_t siglen;
   string sig;
   if (!EVP_DigestSignInit(sign_context.get(), &pkey_ctx, EVP_sha256(), nullptr,
-                          proof_item->private_key->key()) ||
-      !EVP_PKEY_CTX_set_rsa_padding(pkey_ctx, RSA_PKCS1_PSS_PADDING) ||
-      !EVP_PKEY_CTX_set_rsa_pss_saltlen(pkey_ctx, -1) ||
+                          proof_item->private_key.get()) ||
+      (EVP_PKEY_id(proof_item->private_key.get()) == EVP_PKEY_RSA &&
+       (!EVP_PKEY_CTX_set_rsa_padding(pkey_ctx, RSA_PKCS1_PSS_PADDING) ||
+        !EVP_PKEY_CTX_set_rsa_pss_saltlen(pkey_ctx, -1))) ||
       !EVP_DigestSignUpdate(sign_context.get(),
                             reinterpret_cast<const uint8_t*>(in.data()),
                             in.size()) ||
@@ -211,9 +224,10 @@ bool ProofSourceNginx::GetProofInner(
 
   uint32_t len_tmp = chlo_hash.length();
   if (!EVP_DigestSignInit(sign_context.get(), &pkey_ctx, EVP_sha256(), nullptr,
-                          proof_item->private_key->key()) ||
-      !EVP_PKEY_CTX_set_rsa_padding(pkey_ctx, RSA_PKCS1_PSS_PADDING) ||
-      !EVP_PKEY_CTX_set_rsa_pss_saltlen(pkey_ctx, -1) ||
+                          proof_item->private_key.get()) ||
+      (EVP_PKEY_id(proof_item->private_key.get()) == EVP_PKEY_RSA &&
+       (!EVP_PKEY_CTX_set_rsa_padding(pkey_ctx, RSA_PKCS1_PSS_PADDING) ||
+        !EVP_PKEY_CTX_set_rsa_pss_saltlen(pkey_ctx, -1))) ||
       !EVP_DigestSignUpdate(
           sign_context.get(),
           reinterpret_cast<const uint8_t*>(quic::kProofSignatureLabel),
