@@ -5,7 +5,7 @@
 
 #include "quic_ngx_stream.h"
 #include "net/third_party/quiche/src/quic/core/quic_session.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h" 
+#include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
 
@@ -44,7 +44,7 @@ bool QuicNgxStream::SendHttpHeaders(const char* data, int len) {
         break;
       }
       
-      QuicStringPiece line(data + start, i - start);
+      quiche::QuicheStringPiece line(data + start, i - start);
       if (line.substr(0, 4) == "HTTP") {
         size_t pos = line.find(" ");
         if (pos == std::string::npos) {
@@ -63,7 +63,7 @@ bool QuicNgxStream::SendHttpHeaders(const char* data, int len) {
         return false;
       }
       spdy_headers.AppendValueOrAddHeader(
-           QuicTextUtils::ToLower(line.substr(0, pos)), line.substr(pos + 2));
+      quiche::QuicheTextUtils::ToLower(line.substr(0, pos)), line.substr(pos + 2));
       continue;
     }
 
@@ -80,7 +80,7 @@ bool QuicNgxStream::SendHttpHeaders(const char* data, int len) {
 
   auto content_length = spdy_headers.find("content-length");
   if (content_length != spdy_headers.end()) {
-      QuicTextUtils::StringToInt(content_length->second,
+    quiche::QuicheTextUtils::StringToInt(content_length->second,
                                    &content_length_);
   }
   std::string http_status("");
@@ -192,7 +192,7 @@ bool QuicNgxStream::SendHttpbody(const char*data, int len) {
           send_len = len;
         }
       
-        QuicStringPiece body(data, send_len);
+        quiche::QuicheStringPiece body(data, send_len);
         WriteOrBufferBody(body, false);
         content_length_ -= send_len;
         data += send_len;
@@ -218,7 +218,7 @@ bool QuicNgxStream::SendHttpbody(const char*data, int len) {
     }
 
   } else {
-    QuicStringPiece body(data, len);
+    quiche::QuicheStringPiece body(data, len);
     fin_ = had_send_length_ == content_length_;
     WriteOrBufferBody(body, fin_);
   }

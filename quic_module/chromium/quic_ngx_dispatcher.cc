@@ -39,10 +39,10 @@ void QuicNgxDispatcher::OnWriteBlocked(QuicBlockedWriterInterface* blocked_write
   server->OnWriteBlocked();
 }
   
-QuicServerSessionBase* QuicNgxDispatcher::CreateQuicSession(
+std::unique_ptr<QuicSession> QuicNgxDispatcher::CreateQuicSession(
     QuicConnectionId connection_id,
     const QuicSocketAddress& client_address,
-    QuicStringPiece /*alpn*/,
+    quiche::QuicheStringPiece /*alpn*/,
     const ParsedQuicVersion& version) {
   // The QuicServerSessionBase takes ownership of |connection| below.
   QuicConnection* connection = new QuicConnection(
@@ -50,7 +50,7 @@ QuicServerSessionBase* QuicNgxDispatcher::CreateQuicSession(
       /* owns_writer= */ false, Perspective::IS_SERVER,
       ParsedQuicVersionVector{version});
 
-  QuicServerSessionBase* session = new QuicNgxSession(
+  auto session = std::make_unique<QuicNgxSession>(
       config(), GetSupportedVersions(), connection, this, session_helper(),
       crypto_config(), compressed_certs_cache(), server_backend());
   session->Initialize();

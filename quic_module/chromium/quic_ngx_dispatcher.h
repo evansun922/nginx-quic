@@ -30,10 +30,10 @@ class QuicNgxDispatcher : public QuicSimpleDispatcher {
   void OnWriteBlocked(QuicBlockedWriterInterface* blocked_writer) override;
 
  protected:
-  QuicServerSessionBase* CreateQuicSession(
+  std::unique_ptr<QuicSession> CreateQuicSession(
       QuicConnectionId connection_id,
       const QuicSocketAddress& client_address,
-      QuicStringPiece alpn,
+      quiche::QuicheStringPiece alpn,
       const ParsedQuicVersion& version) override;
 
 };
