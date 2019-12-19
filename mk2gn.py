@@ -274,7 +274,10 @@ if __name__ == '__main__':
                 out_fd.writelines("""    libs = [\n""")
                 out_fd.writelines("""      # dynamic library: pthread or static library: /path/xxx.a\n""")
                 for l in libs:
-                    out_fd.writelines("""      "%s",\n"""%(l))
+                    if l == "crypt":
+                        out_fd.writelines("""      "/lib/x86_64-linux-gnu/libcrypt.so.1",\n""")
+                    else:
+                        out_fd.writelines("""      "%s",\n"""%(l))
                 out_fd.writelines("""    ]\n""")
 
                 out_fd.writelines("""    cflags_c = [\n""")
