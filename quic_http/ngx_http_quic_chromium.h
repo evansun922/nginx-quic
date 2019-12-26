@@ -11,13 +11,9 @@
 #include <ngx_core.h>
 #include <ngx_http.h>
 #include "ngx_http_quic_module.h"
-#include "quic_ngx_http_interface.h"
 
-typedef struct {
-  ngx_event_t ev;
-  void *chromium_alarm;
-  OnChromiumAlarm onChromiumAlarm;
-} chromium_alarm_t;
+
+
 
 /*
  *  chromium interface
@@ -34,7 +30,7 @@ void* ngx_http_quic_init_chromium(ngx_http_quic_context_t *module_context,
 
 void ngx_http_quic_handler_buf_by_quic(ngx_connection_t *c);
 
-void ngx_event_quic_recvmsg(ngx_event_t *ev);
+void ngx_http_event_quic_recvmsg(ngx_event_t *ev);
 
 void ngx_event_quic_can_sendmsg(ngx_event_t *ev);
 

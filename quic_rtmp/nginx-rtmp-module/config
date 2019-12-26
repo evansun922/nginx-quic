@@ -21,13 +21,13 @@ RTMP_CORE_MODULES="                                         \
                 ngx_rtmp_limit_module                       \
                 ngx_rtmp_hls_module                         \
                 ngx_rtmp_dash_module                        \
+                ngx_rtmp_quic_module                        \
                 "
 
 
 RTMP_HTTP_MODULES="                                         \
                 ngx_rtmp_stat_module                        \
                 ngx_rtmp_control_module                     \
-                ngx_rtmp_quic_module                        \
                 "
 
 
@@ -85,15 +85,18 @@ RTMP_CORE_SRCS="                                            \
                 $ngx_addon_dir/dash/ngx_rtmp_dash_module.c  \
                 $ngx_addon_dir/hls/ngx_rtmp_mpegts.c        \
                 $ngx_addon_dir/dash/ngx_rtmp_mp4.c          \
+                $ngx_addon_dir/quic/ngx_rtmp_quic_module.c                      \
+                $ngx_addon_dir/quic/ngx_rtmp_quic_chromium.c                    \
+                $ngx_addon_dir/quic/chromium/quic_ngx_rtmp_server.cc            \
+                $ngx_addon_dir/quic/chromium/quic_ngx_rtmp_dispatcher.cc        \
+                $ngx_addon_dir/quic/chromium/quic_ngx_rtmp_session.cc           \
+                $ngx_addon_dir/quic/chromium/quic_ngx_rtmp_interface.cc         \
                 "
 
 
-RTMP_HTTP_SRCS="                                              \
-                $ngx_addon_dir/ngx_rtmp_stat_module.c         \
-                $ngx_addon_dir/ngx_rtmp_control_module.c      \
-                $ngx_addon_dir/quic/ngx_rtmp_quic_module.c    \
-                $ngx_addon_dir/quic/ngx_rtmp_quic_chromium.c   \
-                $ngx_addon_dir/quic/chromium/quic_ngx_rtmp_server.cc  \
+RTMP_HTTP_SRCS="                                                                \
+                $ngx_addon_dir/ngx_rtmp_stat_module.c                           \
+                $ngx_addon_dir/ngx_rtmp_control_module.c                        \
                 "
 
 if [ -f auto/module ] ; then
@@ -116,7 +119,7 @@ if [ -f auto/module ] ; then
 
         ngx_module_type=HTTP
         ngx_module_name=$RTMP_HTTP_MODULES
-        ngx_module_incs=
+        ngx_module_incs="$ngx_addon_dir/quic/ $ngx_addon_dir/quic/chromium/"
         ngx_module_deps=
         ngx_module_srcs=$RTMP_HTTP_SRCS
 

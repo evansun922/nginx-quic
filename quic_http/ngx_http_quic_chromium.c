@@ -5,7 +5,6 @@
 
 
 #include "ngx_http_quic_chromium.h"
-#include "ngx_http_quic_module.h"
 
 
 // ? 
@@ -23,21 +22,11 @@ static void ngx_http_quic_request_quic_2_ngx_in_chromium(void* ngx_connection,
                                              int header_len,
                                              const char *body,
                                              int body_len);
-static void* ngx_http_quic_CreateNgxTimer(void *module_context,
-                                          void *chromium_alarm,
-                                          OnChromiumAlarm onChromiumAlarm);
-static void ngx_http_quic_AddNgxTimer(void *module_context,
-                                      void *ngx_timer,
-                                      int64_t delay);
-static void ngx_http_quic_DelNgxTimer(void *module_context, void *ngx_timer);
-static void ngx_http_quic_FreeNgxTimer(void *ngx_timer);
 static ngx_chain_t *ngx_quic_send_chain(ngx_connection_t *c, ngx_chain_t *in, off_t limit);
 static ssize_t ngx_quic_shared_recv(ngx_connection_t *c, u_char *buf, size_t size);
 static void ngx_http_quic_set_stream_for_connection(void* ngx_request, void* quic_stream);
 static void ngx_http_set_epoll_out(void *module_context);
-
 static void ngx_http_quic_clean_connection(void *data);
-
 static void ngx_http_quic_close_accepted_udp_connection(ngx_connection_t *c);
 
 void*
@@ -55,10 +44,10 @@ ngx_http_quic_init_chromium(ngx_http_quic_context_t *module_context,
                        listen_fd,
                        port,
                        address_family,
-                       ngx_http_quic_CreateNgxTimer,
-                       ngx_http_quic_AddNgxTimer,
-                       ngx_http_quic_DelNgxTimer,
-                       ngx_http_quic_FreeNgxTimer,
+                       ngx_quic_CreateNgxTimer,
+                       ngx_quic_AddNgxTimer,
+                       ngx_quic_DelNgxTimer,
+                       ngx_quic_FreeNgxTimer,
                        ngx_http_quic_request_quic_2_ngx_in_chromium,
                        ngx_http_quic_set_stream_for_connection,
                        ngx_http_set_epoll_out,
@@ -71,7 +60,7 @@ ngx_http_quic_init_chromium(ngx_http_quic_context_t *module_context,
 
 
 void
-ngx_event_quic_recvmsg(ngx_event_t *ev)
+ngx_http_event_quic_recvmsg(ngx_event_t *ev)
 {
 
   ngx_listening_t                 *ls;
@@ -80,19 +69,8 @@ ngx_event_quic_recvmsg(ngx_event_t *ev)
 
 
   if (ev->timedout) {
-    // if (ngx_enable_accept_events((ngx_cycle_t *) ngx_cycle) != NGX_OK) {
-    //   return;
-    // }
-
     ev->timedout = 0;
   }
-
-    // TODO what to do in NGX_USE_KQUEUE_EVENT
-    // ecf = ngx_event_get_conf(ngx_cycle->conf_ctx, ngx_event_core_module);
-
-    // if (!(ngx_event_flags & NGX_USE_KQUEUE_EVENT)) {
-    //     ev->available = ecf->multi_accept;
-    // }
 
   lc = ev->data;
   ls = lc->listening;
@@ -312,72 +290,6 @@ ngx_http_quic_request_quic_2_ngx_in_chromium(void* ngx_connection,
   wev->ready = 1;
   
   ls->handler(c);
-}
-
-
-static void
-ngx_do_chromium_alarm(ngx_event_t *ev)
-{
-  chromium_alarm_t *ca = ev->data;
-  ca->onChromiumAlarm(ca->chromium_alarm);
-}
-
-
-static void*
-ngx_http_quic_CreateNgxTimer(void *module_context,
-                            void *chromium_alarm,
-                            OnChromiumAlarm onChromiumAlarm)
-{
-  ngx_http_quic_context_t *quic_ctx;
-  chromium_alarm_t        *ca;
-
-  quic_ctx = module_context;
-  ca       = ngx_calloc(sizeof(chromium_alarm_t), quic_ctx->pool->log);
-
-  ca->chromium_alarm   = chromium_alarm;
-  ca->onChromiumAlarm  = onChromiumAlarm;
-  ca->ev.handler       = ngx_do_chromium_alarm;
-  ca->ev.log           = quic_ctx->pool->log;
-  ca->ev.data          = ca;
-  
-  return ca;
-}
-
-
-static void
-ngx_http_quic_AddNgxTimer(void *module_context,
-                          void *ngx_timer,
-                          int64_t delay)
-{
-  ngx_http_quic_context_t *quic_ctx;
-  chromium_alarm_t        *ca;
-
-  quic_ctx             = module_context;
-  ca                   = ngx_timer;
-  ca->ev.log           = quic_ctx->pool->log;
-  ngx_add_timer(&ca->ev, delay);
-  ca->ev.timer_set = 1;
-}
-
-
-static void
-ngx_http_quic_DelNgxTimer(void *module_context, void *ngx_timer)
-{
-  ngx_http_quic_context_t *quic_ctx;
-  chromium_alarm_t        *ca;
-
-  quic_ctx = module_context;
-  ca = ngx_timer;
-  if (ca->ev.timer_set == 1) {
-    ngx_del_timer(&ca->ev);
-  }
-}
-
-
-static void
-ngx_http_quic_FreeNgxTimer(void *ngx_timer)
-{
-  ngx_free(ngx_timer);
 }
 
 

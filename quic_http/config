@@ -14,6 +14,7 @@ QUIC_SRCS="                                                             \
         $ngx_addon_dir/../quic_tools/quic_ngx_packet_writer.cc          \
         $ngx_addon_dir/../quic_tools/proof_source_nginx.cc              \
         $ngx_addon_dir/../quic_tools/quic_ngx_alarm_factory.cc          \
+        $ngx_addon_dir/../quic_tools/quic_ngx_tools_interface.c         \
         "
 
 
@@ -27,7 +28,7 @@ if [ -f auto/module ] ; then
 
    ngx_module_type=HTTP
    ngx_module_name=$ngx_addon_name
-   ngx_module_incs="$ngx_addon_dir/chromium/ $ngx_addon_dir/../quic_tools"
+   ngx_module_incs="$ngx_addon_dir/chromium/ $ngx_addon_dir/../quic_tools/"
    ngx_module_srcs="$QUIC_SRCS"
    ngx_module_deps="$QUIC_DEPS"
    #ngx_module_libs="-lgio -lm"

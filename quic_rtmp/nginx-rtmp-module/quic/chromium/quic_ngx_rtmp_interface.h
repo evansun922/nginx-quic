@@ -29,10 +29,16 @@ extern "C"  {
 void* ngx_rtmp_init_quic(void* ngx_module_context,
                          int listen_fd,
                          int port,
+                         int address_family,
                          CreateNgxTimer create_ngx_timer,
                          AddNgxTimer add_ngx_timer,
                          DelNgxTimer del_ngx_timer,
-                         FreeNgxTimer free_ngx_timer);
+                         FreeNgxTimer free_ngx_timer,
+                         char **certificate_list,
+                         char **certificate_key_list);
+
+void ngx_rtmp_read_dispatch_packets(void* chromium_server,
+                                    void* ngx_connection);
 
 
 

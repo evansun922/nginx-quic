@@ -467,10 +467,9 @@ ngx_http_quic_process_init(ngx_cycle_t *cycle)
       }
       
       lc->data = quic_ctx;
-      lc->read->handler = ngx_event_quic_recvmsg;
+      lc->read->handler = ngx_http_event_quic_recvmsg;
       lc->write->log = lc->log;
       lc->write->handler = ngx_event_quic_can_sendmsg;
-      // ls[i].handler = ngx_http_init_connection;
     }
   }
 

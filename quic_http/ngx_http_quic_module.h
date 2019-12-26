@@ -11,7 +11,7 @@
 #include <ngx_config.h>
 #include <ngx_core.h>
 #include <ngx_http.h>
-
+#include "quic_ngx_http_interface.h"
 
 
 typedef struct {
@@ -25,14 +25,7 @@ typedef struct {
 } ngx_http_quic_srv_conf_t;
 
 
-typedef struct {
-  ngx_pool_t       *pool;
-  ngx_connection_t *lc;
-  ngx_event_t      ngx_quic_interval_event;
-  size_t           flush_interval;
-  void             *chromium_server;
-  size_t           stream_buffered_size;
-} ngx_http_quic_context_t;
+typedef ngx_quic_context_t ngx_http_quic_context_t;
 
 
 extern ngx_module_t  ngx_http_quic_module;
