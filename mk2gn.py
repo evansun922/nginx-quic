@@ -62,8 +62,8 @@ if __name__ == '__main__':
         chromium_net_gn = chromium_root + "/net/BUILD.gn"
         
 
-    if os.path.exists(quic_module_root+"/quic_module") == False:
-        print("""Not found the dir "quic_moudle" in current dir "%s"."""%(quic_module_root))
+    if os.path.exists(quic_module_root+"/quic_http") == False:
+        print("""Not found the dir "quic_http" in current dir "%s"."""%(quic_module_root))
         sys.exit(0)
 
     if os.path.exists(nginx_src_core_nginx_h) == False:
@@ -99,7 +99,7 @@ if __name__ == '__main__':
     cmd = "./configure"
     for a in nginx_args:
         cmd = cmd + " " + a
-    cmd = cmd + " --add-module=" + quic_module_root + "/quic_module"
+    cmd = cmd + " --add-module=" + quic_module_root + "/quic_http"
     print("run %s"%(cmd))
     os.system(cmd)
     

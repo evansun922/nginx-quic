@@ -21,7 +21,7 @@ namespace quic {
   
 #if !MMSG_MORE
 // Read in larger batches to minimize recvmmsg overhead.
-const int kNumPacketsPerReadMmsgCall = 16;
+constexpr int kNumPacketsPerReadMmsgCall = 16;
 #endif
 
 class QuicNgxPacketReader : public QuicPacketReader {
@@ -60,7 +60,7 @@ class QuicNgxPacketReader : public QuicPacketReader {
     // cbuf is used for ancillary data from the kernel on recvmmsg.
     char cbuf[kCmsgSpaceForReadPacket];
     // buf is used for the data read from the kernel on recvmmsg.
-    char buf[kMaxV4PacketSize];
+    char buf[2*kMaxIncomingPacketSize];
   };
   PacketData packets_[kNumPacketsPerReadMmsgCall];
   mmsghdr mmsg_hdr_[kNumPacketsPerReadMmsgCall];

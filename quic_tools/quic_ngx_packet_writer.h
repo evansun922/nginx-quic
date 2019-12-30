@@ -11,7 +11,8 @@
 
 namespace quic {
 
-const size_t max_cache_buffer_write_size = 16;
+constexpr size_t kMaxWritesCacheCount = 16;
+constexpr size_t kMaxWritesCacheSize = 2 * kMaxOutgoingPacketSize;
   
 // Ngx packet writer which wraps QuicLinuxSocketUtils WritePacket.
 class QUIC_EXPORT_PRIVATE QuicNgxPacketWriter : public QuicDefaultPacketWriter {
@@ -31,7 +32,7 @@ class QUIC_EXPORT_PRIVATE QuicNgxPacketWriter : public QuicDefaultPacketWriter {
 
  private:
   QuicDeque<BufferedWrite> buffered_writes_;
-  char writes_cache_[max_cache_buffer_write_size][kEthernetMTU];
+  char writes_cache_[kMaxWritesCacheCount][kMaxWritesCacheSize];
   size_t writes_cache_pos_;
   // QuicSyscallWrapper quic_sys_call_wrapper_;
 };

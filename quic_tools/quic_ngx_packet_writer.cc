@@ -22,19 +22,19 @@ WriteResult QuicNgxPacketWriter::WritePacket(
   DCHECK(nullptr == options)
       << "QuicNgxPacketWriter does not accept any options.";
 
-  if (buffered_writes_.size() >= max_cache_buffer_write_size) {
+  if (buffered_writes_.size() >= kMaxWritesCacheCount) {
     Flush();
-    if (buffered_writes_.size() >= max_cache_buffer_write_size) {
+    if (buffered_writes_.size() >= kMaxWritesCacheCount) {
       set_write_blocked(true);
       return WriteResult(WRITE_STATUS_BLOCKED, EAGAIN);
     }    
   }
   
-  char *cpy_buffer = writes_cache_[writes_cache_pos_%max_cache_buffer_write_size];
+  char *cpy_buffer = writes_cache_[writes_cache_pos_%kMaxWritesCacheCount];
   memcpy(cpy_buffer, buffer, buf_len);
   writes_cache_pos_++;
   buffered_writes_.emplace_back(cpy_buffer, buf_len, self_address, peer_address);
-  if (buffered_writes_.size() >= max_cache_buffer_write_size) {
+  if (buffered_writes_.size() >= kMaxWritesCacheCount) {
     // send
     WriteResult result = Flush();
     if (IsWriteBlockedStatus(result.status)) {
