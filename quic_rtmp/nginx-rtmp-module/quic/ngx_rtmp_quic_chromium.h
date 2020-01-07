@@ -23,7 +23,7 @@ void* ngx_rtmp_quic_init_chromium(
                  char **certificate_list,
                  char **certificate_key_list);
 void ngx_rtmp_event_quic_recvmsg(ngx_event_t *ev);
-
+void ngx_rtmp_event_quic_can_sendmsg(ngx_event_t *ev);
 
 
 #endif // _NGX_RTMP_QUIC_CHROMIUM_H_INCLUDED_

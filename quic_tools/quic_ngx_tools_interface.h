@@ -56,6 +56,7 @@ typedef void(*DelNgxTimer)(void *module_context, void *ngx_timer);
 
 typedef void(*FreeNgxTimer)(void *ngx_timer);
 
+typedef void(*SetEPOLLOUT)(void* module_context);
 
 
   
@@ -68,7 +69,18 @@ void ngx_quic_AddNgxTimer(void *module_context,
 void ngx_quic_DelNgxTimer(void *module_context, void *ngx_timer);
 void ngx_quic_FreeNgxTimer(void *ngx_timer);
 
-  
+
+void ngx_quic_close_accepted_udp_connection(ngx_connection_t *c);
+ngx_connection_t *
+ngx_create_connection_for_quic(ngx_connection_t *lc,
+                               struct sockaddr_storage* self_addr,
+                               struct sockaddr_storage* peer_addr,
+                               ngx_recv_pt recv,
+                               ngx_send_pt send,
+                               ngx_send_chain_pt send_chain,
+                               ngx_pool_cleanup_pt pool_cleanup_handler);
+
+void ngx_quic_set_epoll_out(void *module_context);
   
 #ifdef __cplusplus
 }

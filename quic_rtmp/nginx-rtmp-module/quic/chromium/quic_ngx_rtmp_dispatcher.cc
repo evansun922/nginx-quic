@@ -20,14 +20,21 @@ QuicNgxRtmpDispatcher::QuicNgxRtmpDispatcher(
     std::unique_ptr<QuicConnectionHelperInterface> helper,
     std::unique_ptr<QuicCryptoServerStream::Helper> session_helper,
     std::unique_ptr<QuicAlarmFactory> alarm_factory,
-    uint8_t expected_server_connection_id_length)
+    uint8_t expected_server_connection_id_length,
+    ProcessRtmpData process_rtmp_data,
+    SetVisitorForNgx set_visitor_for_ngx,
+    void* ngx_module_context)
     : QuicDispatcher(config,
                      crypto_config,
                      version_manager,
                      std::move(helper),
                      std::move(session_helper),
                      std::move(alarm_factory),
-                     expected_server_connection_id_length){}
+                     expected_server_connection_id_length),
+      process_rtmp_data_(process_rtmp_data),
+      set_visitor_for_ngx_(set_visitor_for_ngx),
+      ngx_module_context_(ngx_module_context) {}
+
 
 std::unique_ptr<QuicSession>
 QuicNgxRtmpDispatcher::CreateQuicSession(
@@ -41,7 +48,8 @@ QuicNgxRtmpDispatcher::CreateQuicSession(
       ParsedQuicVersionVector{version});
   auto session = std::make_unique<QuicNgxRtmpSession>(
       connection.release(), /*owns_connection=*/true, this, config(),
-      GetSupportedVersions(), crypto_config(), compressed_certs_cache());
+      GetSupportedVersions(), crypto_config(), compressed_certs_cache(),
+      this);
   session->Initialize();
   return session;
 }

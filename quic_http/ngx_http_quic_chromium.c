@@ -25,9 +25,8 @@ static void ngx_http_quic_request_quic_2_ngx_in_chromium(void* ngx_connection,
 static ngx_chain_t *ngx_quic_send_chain(ngx_connection_t *c, ngx_chain_t *in, off_t limit);
 static ssize_t ngx_quic_shared_recv(ngx_connection_t *c, u_char *buf, size_t size);
 static void ngx_http_quic_set_stream_for_connection(void* ngx_request, void* quic_stream);
-static void ngx_http_set_epoll_out(void *module_context);
 static void ngx_http_quic_clean_connection(void *data);
-static void ngx_http_quic_close_accepted_udp_connection(ngx_connection_t *c);
+
 
 void*
 ngx_http_quic_init_chromium(ngx_http_quic_context_t *module_context,
@@ -50,7 +49,7 @@ ngx_http_quic_init_chromium(ngx_http_quic_context_t *module_context,
                        ngx_quic_FreeNgxTimer,
                        ngx_http_quic_request_quic_2_ngx_in_chromium,
                        ngx_http_quic_set_stream_for_connection,
-                       ngx_http_set_epoll_out,
+                       ngx_quic_set_epoll_out,
                        certificate_list,
                        certificate_key_list,
                        bbr,
@@ -85,7 +84,7 @@ ngx_http_event_quic_recvmsg(ngx_event_t *ev)
 
 
 void
-ngx_event_quic_can_sendmsg(ngx_event_t *ev)
+ngx_http_event_quic_can_sendmsg(ngx_event_t *ev)
 {
   
   ngx_connection_t                *lc;
@@ -95,8 +94,7 @@ ngx_event_quic_can_sendmsg(ngx_event_t *ev)
   lc = ev->data;
   quic_ctx = lc->data;
   
-  if (ngx_http_can_write(quic_ctx->chromium_server) == NGX_OK &&
-      lc->write->active) {
+  if (ngx_http_can_write(quic_ctx->chromium_server) == NGX_OK) {
     ngx_del_event(ev, NGX_WRITE_EVENT, NGX_LEVEL_EVENT);
   }
 }
@@ -119,157 +117,28 @@ ngx_http_quic_request_quic_2_ngx_in_chromium(void* ngx_connection,
                                              int body_len) {
   
   ngx_buf_t                 *buf;
-  ngx_log_t                 *log;
-  socklen_t                 socklen, local_socklen;
-  ngx_event_t               *rev, *wev;
-  struct sockaddr           *sockaddr, *local_sockaddr;
   ngx_listening_t           *ls;
   ngx_connection_t          *c, *lc;
 
 
-  ngx_pool_cleanup_t        *cln;
-  ngx_udp_connection_t      *udp;
-  
-
   lc = ngx_connection;
   ls = lc->listening;
+  c = ngx_create_connection_for_quic(lc,
+                                     self_addr,
+                                     peer_addr,
+                                     ngx_quic_shared_recv,
+                                     ngx_udp_send,
+                                     ngx_quic_send_chain,
+                                     ngx_http_quic_clean_connection);
 
-  socklen = sizeof(struct sockaddr_storage);
-  sockaddr = (struct sockaddr *)peer_addr;
-
-
-#if (NGX_STAT_STUB)
-  (void) ngx_atomic_fetch_add(ngx_stat_accepted, 1);
-#endif
-
-  ngx_accept_disabled = ngx_cycle->connection_n / 8
-    - ngx_cycle->free_connection_n;
-
-  c = ngx_get_connection(lc->fd, lc->read->log);
   if (c == NULL) {
     return;
   }
-
-  //  c->shared = 1;
-  c->type = SOCK_DGRAM;
-  c->socklen = socklen;
-
-#if (NGX_STAT_STUB)
-  (void) ngx_atomic_fetch_add(ngx_stat_active, 1);
-#endif
-
-  c->pool = ngx_create_pool(ls->pool_size, lc->read->log);
-  if (c->pool == NULL) {
-    ngx_http_quic_close_accepted_udp_connection(c);
-    return;
-  }
-
-  c->sockaddr = ngx_palloc(c->pool, socklen);
-  if (c->sockaddr == NULL) {
-    ngx_http_quic_close_accepted_udp_connection(c);
-    return;
-  }
-
-  ngx_memcpy(c->sockaddr, sockaddr, socklen);
-
-  log = ngx_palloc(c->pool, sizeof(ngx_log_t));
-  if (log == NULL) {
-    ngx_http_quic_close_accepted_udp_connection(c);
-    return;
-  }
-
-  *log = ls->log;
-
-  c->recv = ngx_quic_shared_recv;
-  c->send = ngx_udp_send;
-  c->send_chain = ngx_quic_send_chain;
-
-  c->log = log;
-  c->pool->log = log;
-  c->listening = ls;
-
-
-  local_socklen = sizeof(struct sockaddr_storage); // ls->socklen;
-  local_sockaddr = ngx_palloc(c->pool, local_socklen);
-  if (local_sockaddr == NULL) {
-    ngx_http_quic_close_accepted_udp_connection(c);
-    return;
-  }
-
-  // ngx_memcpy(local_sockaddr, ls->sockaddr, local_socklen);
-  ngx_memcpy(local_sockaddr, (struct sockaddr *)self_addr, local_socklen);
     
-
-  c->local_sockaddr = local_sockaddr;
-  c->local_socklen = local_socklen;
-
-    
-  rev = c->read;
-  wev = c->write;
-
-
-  rev->log = log;
-  wev->log = log;
-
-  /*
-   * TODO: MT: - ngx_atomic_fetch_add()
-   *             or protection by critical section or light mutex
-   *
-   * TODO: MP: - allocated in a shared memory
-   *           - ngx_atomic_fetch_add()
-   *             or protection by critical section or light mutex
-   */
-
-  c->number = ngx_atomic_fetch_add(ngx_connection_counter, 1);
-
-#if (NGX_STAT_STUB)
-  (void) ngx_atomic_fetch_add(ngx_stat_handled, 1);
-#endif
-
-  if (ls->addr_ntop) {
-    c->addr_text.data = ngx_pnalloc(c->pool, ls->addr_text_max_len);
-    if (c->addr_text.data == NULL) {
-      ngx_http_quic_close_accepted_udp_connection(c);
-      return;
-    }
-
-    c->addr_text.len = ngx_sock_ntop(c->sockaddr, c->socklen,
-                                     c->addr_text.data,
-                                     ls->addr_text_max_len, 0);
-    if (c->addr_text.len == 0) {
-      ngx_http_quic_close_accepted_udp_connection(c);
-      return;
-    }
-  }
-
-
-  udp = ngx_pcalloc(c->pool, sizeof(ngx_udp_connection_t));
-  if (udp == NULL) {
-    ngx_http_quic_close_accepted_udp_connection(c);
-    return;
-  }
-
-  udp->connection = c;
-
-  cln = ngx_pool_cleanup_add(c->pool, 0);
-  if (cln == NULL) {
-    ngx_http_quic_close_accepted_udp_connection(c);
-    return;
-  }
-
-  cln->data = c;
-  cln->handler = ngx_http_quic_clean_connection;
-  c->udp = udp;
-    
-
-  log->data = NULL;
-  log->handler = NULL;
-
-  
   // quic me
   buf = ngx_create_temp_buf(c->pool, header_len + body_len);
   if (buf == NULL) {
-    ngx_http_quic_close_accepted_udp_connection(c);
+    ngx_quic_close_accepted_udp_connection(c);
     return;
   }
   buf->last = ngx_copy(buf->last, header, header_len);
@@ -286,8 +155,6 @@ ngx_http_quic_request_quic_2_ngx_in_chromium(void* ngx_connection,
 
   // Forge a tcp socket for upstream, limit-rate, api of tcp
   c->fd = ngx_socket(ls->sockaddr->sa_family, SOCK_STREAM, 0);
-
-  wev->ready = 1;
   
   ls->handler(c);
 }
@@ -478,15 +345,6 @@ ngx_http_quic_set_stream_for_connection(void* ngx_connection,
   c->quic_stream = quic_stream;
 }
 
-static void
-ngx_http_set_epoll_out(void *module_context)
-{
-  ngx_http_quic_context_t *quic_ctx;
-
-  quic_ctx = module_context;
-  ngx_add_event(quic_ctx->lc->write, NGX_WRITE_EVENT, NGX_LEVEL_EVENT);
-}
-
 
 static void
 ngx_http_quic_clean_connection(void *data)
@@ -502,21 +360,6 @@ ngx_http_quic_clean_connection(void *data)
 }
 
 
-static void
-ngx_http_quic_close_accepted_udp_connection(ngx_connection_t *c)
-{
-  ngx_free_connection(c);
-
-  c->fd = (ngx_socket_t) -1;
-
-  if (c->pool) {
-    ngx_destroy_pool(c->pool);
-  }
-
-#if (NGX_STAT_STUB)
-  (void) ngx_atomic_fetch_add(ngx_stat_active, -1);
-  #endif
-}
 
 
 

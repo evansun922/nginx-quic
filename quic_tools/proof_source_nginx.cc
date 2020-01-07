@@ -80,7 +80,10 @@ bool ProofSourceNginx::Initialize(const base::FilePath& cert_path,
              sizeof("-----BEGIN RSA PRIVATE KEY-----")-1) == 0 ||
       memcmp(key_data.data(),
              "-----BEGIN EC PRIVATE KEY-----",
-             sizeof("-----BEGIN EC PRIVATE KEY-----")-1) == 0) {
+             sizeof("-----BEGIN EC PRIVATE KEY-----")-1) == 0 ||
+      memcmp(key_data.data(),
+             "-----BEGIN PRIVATE KEY-----",
+             sizeof("-----BEGIN PRIVATE KEY-----")-1) == 0) {
     bssl::UniquePtr<BIO> bio(BIO_new_mem_buf(
                                 const_cast<char*>(key_data.data()),
                                 static_cast<int>(key_data.size())));

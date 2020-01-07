@@ -169,7 +169,9 @@ void QuicNgxHttpServer::Initialize(void* ngx_module_context,
 
 QuicPacketWriter* QuicNgxHttpServer::CreateWriter(int fd) {
   // return new QuicDefaultPacketWriter(fd);
-  writer_ = new QuicNgxPacketWriter(fd);
+  writer_ = new QuicNgxPacketWriter(fd,
+                                    set_epoll_out_,
+                                    ngx_module_context_);
   return writer_;
 }
 

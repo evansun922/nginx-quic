@@ -32,6 +32,6 @@ void ngx_http_quic_handler_buf_by_quic(ngx_connection_t *c);
 
 void ngx_http_event_quic_recvmsg(ngx_event_t *ev);
 
-void ngx_event_quic_can_sendmsg(ngx_event_t *ev);
+void ngx_http_event_quic_can_sendmsg(ngx_event_t *ev);
 
 #endif /* _NGX_HTTP_QUIC_CHROMIUM_H_INCLUDED_ */

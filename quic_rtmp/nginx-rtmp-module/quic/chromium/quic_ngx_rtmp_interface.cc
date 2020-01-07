@@ -15,7 +15,7 @@
 #include "quic_ngx_rtmp_server.h"
 #include "quic_ngx_rtmp_interface.h"
 #include "proof_source_nginx.h"
-
+#include "quic_ngx_rtmp_session.h"
 
 
 #define set_ngx_quic_args(argc, argv, v)                \
@@ -33,7 +33,10 @@ void* ngx_rtmp_init_quic(void* ngx_module_context,
                          DelNgxTimer del_ngx_timer,
                          FreeNgxTimer free_ngx_timer,
                          char **certificate_list,
-                         char **certificate_key_list) {
+                         char **certificate_key_list,
+                         ProcessRtmpData process_rtmp_data,
+                         SetVisitorForNgx set_visitor_for_ngx,
+                         SetEPOLLOUT set_epoll_out) {
   // base::AtExitManager exit_manager;
   
   int quic_argc = 0;
@@ -101,25 +104,25 @@ void* ngx_rtmp_init_quic(void* ngx_module_context,
                      create_ngx_timer,
                      add_ngx_timer,
                      del_ngx_timer,
-                     free_ngx_timer);
+                     free_ngx_timer,
+                     process_rtmp_data,
+                     set_visitor_for_ngx,
+                     set_epoll_out);
   
   return server;
 }
 
-// void ngx_rtmp_free_quic(void* chromium_server) {
-//   quic::QuicNgxHttpServer *server =
-//     reinterpret_cast<quic::QuicNgxHttpServer*>(chromium_server);
+void ngx_rtmp_free_quic(void* chromium_server) {
+  quic::QuicNgxRtmpServer *server =
+    reinterpret_cast<quic::QuicNgxRtmpServer*>(chromium_server);
+  delete server;
+}
 
-//   quic::QuicNgxHttpBackend* back_end = server->server_backend();
-//   delete server;
-//   delete back_end;
-// }
-
-// void ngx_http_shutdown_quic(void* chromium_server) {
-//   quic::QuicNgxHttpServer *server =
-//     reinterpret_cast<quic::QuicNgxHttpServer*>(chromium_server);
-//   server->Shutdown();
-// }
+void ngx_rtmp_shutdown_quic(void* chromium_server) {
+  quic::QuicNgxRtmpServer *server =
+    reinterpret_cast<quic::QuicNgxRtmpServer*>(chromium_server);
+  server->Shutdown();
+}
 
 void ngx_rtmp_read_dispatch_packets(void* chromium_server,
                                     void* ngx_connection) {
@@ -128,30 +131,32 @@ void ngx_rtmp_read_dispatch_packets(void* chromium_server,
   server->ReadAndDispatchPackets(ngx_connection);
 }
 
-// ssize_t ngx_http_send_quic_packets(void* quic_stream,
-//                               const char*data, int len) {
-//   if (!quic_stream) {
-//     return -1;
-//   }
+ssize_t ngx_rtmp_send_quic_packets(
+                          void* quic_visitor,
+                          const char*data,
+                          int len) {
+  if (!quic_visitor) {
+    return -1;
+  }
   
-//   quic::QuicNgxHttpStream *stream =
-//     reinterpret_cast<quic::QuicNgxHttpStream*>(quic_stream);
-//   //  start = "HTTP/1"
-//   if (false == stream->get_send_header()) {
-//     if (len < 7 || memcmp(data, "HTTP/1.", 7) != 0 ) {
-//       return -1;
-//     }
-//     if (stream->SendHttpHeaders(data, len) == false) {
-//       return -1;
-//     }
-//   } else {
-//     if (stream->SendHttpbody(data, len) == false) {
-//       return -1;
-//     }
-//   }
+  quic::QuicNgxRtmpVisitor *visitor =
+    reinterpret_cast<quic::QuicNgxRtmpVisitor*>(quic_visitor);
+  if (visitor->Write(data, len) == false) {
+    return -1;
+  }
 
-//   return len;
-// }
+  return len;
+}
+
+void ngx_rtmp_sendfin(void* quic_visitor) {
+  if (!quic_visitor) {
+    return;
+  }
+  
+  quic::QuicNgxRtmpVisitor *visitor =
+    reinterpret_cast<quic::QuicNgxRtmpVisitor*>(quic_visitor);
+  visitor->SendFin();
+}
 
 // size_t ngx_http_stream_buffered_size(void* quic_stream) {
 //   if (!quic_stream) {
@@ -164,32 +169,33 @@ void ngx_rtmp_read_dispatch_packets(void* chromium_server,
 //   return stream->BufferedDataBytes();
 // }
 
-// int ngx_http_flush_cache_packets(void* chromium_server) {
-//   quic::QuicNgxHttpServer *server =
-//     reinterpret_cast<quic::QuicNgxHttpServer*>(chromium_server);
+int ngx_rtmp_flush_cache_packets(void* chromium_server) {
+  quic::QuicNgxRtmpServer *server =
+    reinterpret_cast<quic::QuicNgxRtmpServer*>(chromium_server);
 
-//   if (server->FlushWriteCache() == true) {
-//     return NGX_AGAIN;
-//   }
+  if (server->FlushWriteCache() == true) {
+    return NGX_AGAIN;
+  }
 
-//   return NGX_OK;
-// }
+  return NGX_OK;
+}
 
-// int ngx_http_can_write(void* chromium_server) {
-//   quic::QuicNgxHttpServer *server =
-//     reinterpret_cast<quic::QuicNgxHttpServer*>(chromium_server);
+int ngx_rtmp_can_write(void* chromium_server) {
+  quic::QuicNgxRtmpServer *server =
+    reinterpret_cast<quic::QuicNgxRtmpServer*>(chromium_server);
 
-//   if (server->CanWrite() == true) {
-//     return NGX_AGAIN; 
-//   }
+  if (server->CanWrite() == true) {
+    return NGX_AGAIN; 
+  }
 
-//   return NGX_OK;
-// }
+  return NGX_OK;
+}
 
-// void ngx_http_set_nc_for_quic_stream(void* quic_stream,
-//                                 void* ngx_connection) {
-//   quic::QuicNgxHttpStream *stream =
-//     reinterpret_cast<quic::QuicNgxHttpStream*>(quic_stream);
-//   stream->set_ngx_connection(ngx_connection);
-// }
+void ngx_rtmp_set_nc_for_quic_visitor(
+                      void* quic_visitor,
+                      void* ngx_connection) {
+  quic::QuicNgxRtmpVisitor *visitor =
+    reinterpret_cast<quic::QuicNgxRtmpVisitor*>(quic_visitor);
+  visitor->SetNc(ngx_connection);
+}
 

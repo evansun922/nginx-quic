@@ -180,7 +180,7 @@ ngx_rtmp_quic_process_init(ngx_cycle_t *cycle)
 
   ngx_rtmp_core_main_conf_t       *cmcf;
   ngx_rtmp_core_srv_conf_t        **cscfp;
-  // ngx_http_ssl_srv_conf_t         *sscf;  
+  
   
   ls = cycle->listening.elts;
   for (i = 0; i < cycle->listening.nelts; i++) {
@@ -353,7 +353,7 @@ ngx_rtmp_quic_process_init(ngx_cycle_t *cycle)
     lc->data = quic_ctx;
     lc->read->handler = ngx_rtmp_event_quic_recvmsg;
     lc->write->log = lc->log;
-    //lc->write->handler = ngx_event_quic_can_sendmsg;    
+    lc->write->handler = ngx_rtmp_event_quic_can_sendmsg;
   }
 
   
@@ -364,6 +364,51 @@ ngx_rtmp_quic_process_init(ngx_cycle_t *cycle)
 static void
 ngx_rtmp_quic_exit_process(ngx_cycle_t *cycle)
 {
+  ngx_uint_t                      i;
+  ngx_listening_t                 *ls;
+  ngx_connection_t                *lc;
+  ngx_pool_t                      *pool;
+  ngx_rtmp_quic_context_t         *quic_ctx;
+  ngx_event_t                     *ev;
+  
+  
+  ls = cycle->listening.elts;
+  for (i = 0; i < cycle->listening.nelts; i++) {
+      
+    if (ls[i].handler == ngx_rtmp_quic_handler_buf_by_quic) {
+      
+      lc = ls[i].connection;
+      if (lc == NULL) {
+        continue;
+      }
+            
+      if (lc->data == NULL) {
+        continue;
+      }
+
+      quic_ctx = lc->data;
+
+      if (quic_ctx->chromium_server) {
+        ngx_rtmp_free_quic(quic_ctx->chromium_server);
+        quic_ctx->chromium_server = NULL;
+      }
+
+      ev = &quic_ctx->ngx_quic_interval_event;
+      if (ev->timer_set) {
+        ngx_del_timer(ev);
+      }
+
+      quic_ctx->lc = NULL;
+      
+      pool = quic_ctx->pool;
+      ngx_pfree(pool, quic_ctx);
+      
+      ngx_destroy_pool(pool);
+
+      lc->data = NULL;
+    }
+    
+  }
 
 }
 
@@ -424,26 +469,26 @@ ngx_rtmp_quic_check_and_rewrite_handler(ngx_cycle_t *cycle,
 static void
 ngx_rtmp_do_quic_interval(ngx_event_t *ev) {
 
-  // ngx_http_quic_context_t         *quic_ctx;
+  ngx_rtmp_quic_context_t         *quic_ctx;
 
-  // quic_ctx = ev->data;
+  quic_ctx = ev->data;
     
-  // if (ngx_quit || ngx_exiting) {
-  //   if (quic_ctx->chromium_server) {
-  //     ngx_shutdown_quic(quic_ctx->chromium_server);
-  //     ngx_free_quic(quic_ctx->chromium_server);
-  //     quic_ctx->chromium_server = NULL;
-  //   }
-  //   return;
-  // }
+  if (ngx_quit || ngx_exiting) {
+    if (quic_ctx->chromium_server) {
+      ngx_rtmp_shutdown_quic(quic_ctx->chromium_server);
+      ngx_rtmp_free_quic(quic_ctx->chromium_server);
+      quic_ctx->chromium_server = NULL;
+    }
+    return;
+  }
 
 
-  // if ((ngx_flush_cache_packets(quic_ctx->chromium_server) == NGX_AGAIN ||
-  //      ngx_can_write(quic_ctx->chromium_server) == NGX_AGAIN)
-  //     && quic_ctx->lc) {
-  //   ngx_add_event(quic_ctx->lc->write, NGX_WRITE_EVENT, NGX_LEVEL_EVENT);
-  // }
+  if ((ngx_rtmp_flush_cache_packets(quic_ctx->chromium_server) == NGX_AGAIN ||
+       ngx_rtmp_can_write(quic_ctx->chromium_server) == NGX_AGAIN)
+      && quic_ctx->lc) {
+    ngx_add_event(quic_ctx->lc->write, NGX_WRITE_EVENT, NGX_LEVEL_EVENT);
+  }
   
-  // ngx_add_timer(ev, quic_ctx->flush_interval);
+  ngx_add_timer(ev, quic_ctx->flush_interval);
 }
 

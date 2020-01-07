@@ -34,7 +34,6 @@ typedef void(*RequestHttpQuic2Ngx)(void* ngx_connection,
 typedef void(*SetStreamForNgx)(void* ngx_request, /*ngx_http_request_t*/
                                void* quic_stream);
 
-typedef void(*SetEPOLLOUT)(void* module_context);
 
 
   

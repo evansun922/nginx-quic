@@ -261,9 +261,13 @@ ngx_rtmp_recv(ngx_event_t *rev)
             }
 
             if (n == NGX_AGAIN) {
+#if NGX_G_QUIC
+                // nothing to do
+#else
                 if (ngx_handle_read_event(c->read, 0) != NGX_OK) {
                     ngx_rtmp_finalize_session(s);
                 }
+#endif
                 return;
             }
 

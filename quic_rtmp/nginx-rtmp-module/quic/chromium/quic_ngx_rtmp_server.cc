@@ -20,6 +20,7 @@
 #include "quic_ngx_packet_reader.h"
 #include "quic_ngx_packet_writer.h"
 #include "quic_ngx_rtmp_dispatcher.h"
+#include "quic_ngx_packet_writer.h"
 
 namespace quic {
 namespace {
@@ -63,6 +64,7 @@ QuicNgxRtmpServer::QuicNgxRtmpServer(int fd, int port,
                    std::move(proof_source),
                    quic::KeyExchangeSource::Default()),
     packet_reader_(new QuicNgxPacketReader()),
+    writer_(nullptr),
     packets_dropped_(0),
     overflow_supported_(false) {}
 
@@ -74,7 +76,10 @@ void QuicNgxRtmpServer::Initialize(
                    CreateNgxTimer create_ngx_timer,
                    AddNgxTimer add_ngx_timer,
                    DelNgxTimer del_ngx_timer,
-                   FreeNgxTimer free_ngx_timer) {
+                   FreeNgxTimer free_ngx_timer,
+                   ProcessRtmpData process_rtmp_data,
+                   SetVisitorForNgx set_visitor_for_ngx,
+                   SetEPOLLOUT set_epoll_out) {
   
   int get_overflow = 1;
   int rc = setsockopt(fd_, SOL_SOCKET, SO_RXQ_OVFL, &get_overflow,
@@ -111,9 +116,37 @@ void QuicNgxRtmpServer::Initialize(
                     add_ngx_timer,
                     del_ngx_timer,
                     free_ngx_timer),
-                quic::kQuicDefaultConnectionIdLength));
+                quic::kQuicDefaultConnectionIdLength,
+                process_rtmp_data,
+                set_visitor_for_ngx,
+                ngx_module_context));
 
-  dispatcher_->InitializeWithWriter(new QuicDefaultPacketWriter(fd_));
+  writer_ = new QuicNgxPacketWriter(fd_,
+                                    set_epoll_out,
+                                    ngx_module_context);
+  dispatcher_->InitializeWithWriter(writer_);
+}
+
+void QuicNgxRtmpServer::Shutdown() {
+  dispatcher_->Shutdown();
+}
+
+bool QuicNgxRtmpServer::FlushWriteCache() {
+  if (writer_ == nullptr) {
+    return false;
+  }
+
+  WriteResult r = writer_->Flush();
+  return r.status == WRITE_STATUS_BLOCKED;
+}
+
+bool QuicNgxRtmpServer::CanWrite() {
+  dispatcher_->OnCanWrite();
+  if (dispatcher_->HasPendingWrites()) {
+    return true;
+  }
+
+  return FlushWriteCache();
 }
 
 void QuicNgxRtmpServer::ReadAndDispatchPackets(void* ngx_connection) {

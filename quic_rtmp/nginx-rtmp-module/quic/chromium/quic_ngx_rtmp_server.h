@@ -18,6 +18,7 @@ namespace quic {
 
 class QuicPacketReader;
 class QuicDispatcher;
+class QuicNgxPacketWriter;
   
 // Server for rtmp
 class QuicNgxRtmpServer {
@@ -32,7 +33,14 @@ class QuicNgxRtmpServer {
                   CreateNgxTimer create_ngx_timer,
                   AddNgxTimer add_ngx_timer,
                   DelNgxTimer del_ngx_timer,
-                  FreeNgxTimer free_ngx_timer);
+                  FreeNgxTimer free_ngx_timer,
+                  ProcessRtmpData process_rtmp_data,
+                  SetVisitorForNgx set_visitor_for_ngx,
+                  SetEPOLLOUT set_epoll_out);
+
+  void Shutdown();
+  bool FlushWriteCache();
+  bool CanWrite();
 
   void ReadAndDispatchPackets(void* ngx_connection);
 
@@ -49,7 +57,8 @@ class QuicNgxRtmpServer {
 
   std::unique_ptr<QuicDispatcher> dispatcher_;
   std::unique_ptr<QuicPacketReader> packet_reader_;
-
+  QuicNgxPacketWriter* writer_; // Not owned.
+  
   QuicPacketCount packets_dropped_;
   bool overflow_supported_;
 };

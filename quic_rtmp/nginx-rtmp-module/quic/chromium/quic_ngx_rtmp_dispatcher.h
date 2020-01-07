@@ -10,6 +10,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_dispatcher.h"
 #include "net/third_party/quiche/src/quic/tools/quic_transport_simple_server_session.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
+#include "quic_ngx_rtmp_interface.h"
 
 namespace quic {
 
@@ -24,8 +25,15 @@ class QuicNgxRtmpDispatcher : public QuicDispatcher {
       std::unique_ptr<QuicConnectionHelperInterface> helper,
       std::unique_ptr<QuicCryptoServerStream::Helper> session_helper,
       std::unique_ptr<QuicAlarmFactory> alarm_factory,
-      uint8_t expected_server_connection_id_length);
+      uint8_t expected_server_connection_id_length,
+      ProcessRtmpData process_rtmp_data,
+      SetVisitorForNgx set_visitor_for_ngx,
+      void* ngx_module_context);
+  
 
+  ProcessRtmpData GetProcessRtmpData() { return process_rtmp_data_; }
+  SetVisitorForNgx GetSetVisitorForNgx() { return set_visitor_for_ngx_; }
+  void* GetNgxContext() {return ngx_module_context_;}
  protected:
   std::unique_ptr<QuicSession> CreateQuicSession(
       QuicConnectionId server_connection_id,
@@ -33,6 +41,10 @@ class QuicNgxRtmpDispatcher : public QuicDispatcher {
       quiche::QuicheStringPiece alpn,
       const ParsedQuicVersion& version) override;
 
+ private:
+  ProcessRtmpData process_rtmp_data_;
+  SetVisitorForNgx set_visitor_for_ngx_;
+  void *ngx_module_context_;
 };
 
 }  // namespace quic
