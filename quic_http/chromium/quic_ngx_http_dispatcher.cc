@@ -31,13 +31,6 @@ QuicNgxHttpDispatcher::QuicNgxHttpDispatcher(
 
 QuicNgxHttpDispatcher::~QuicNgxHttpDispatcher() = default;
 
-void QuicNgxHttpDispatcher::OnWriteBlocked(QuicBlockedWriterInterface* blocked_writer) {
-  QuicSimpleDispatcher::OnWriteBlocked(blocked_writer);
-
-  QuicNgxHttpBackend *backend = reinterpret_cast<QuicNgxHttpBackend*>(server_backend());
-  QuicNgxHttpServer *server = backend->get_server();
-  server->OnWriteBlocked();
-}
   
 std::unique_ptr<QuicSession> QuicNgxHttpDispatcher::CreateQuicSession(
     QuicConnectionId connection_id,

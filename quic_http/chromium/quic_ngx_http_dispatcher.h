@@ -24,11 +24,6 @@ class QuicNgxHttpDispatcher : public QuicSimpleDispatcher {
 
   ~QuicNgxHttpDispatcher() override;
 
-  // QuicSession::Visitor interface implementation (via inheritance of
-  // QuicTimeWaitListManager::Visitor):
-  // Queues the blocked writer for later resumption.
-  void OnWriteBlocked(QuicBlockedWriterInterface* blocked_writer) override;
-
  protected:
   std::unique_ptr<QuicSession> CreateQuicSession(
       QuicConnectionId connection_id,

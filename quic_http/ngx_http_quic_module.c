@@ -673,7 +673,8 @@ ngx_do_quic_interval(ngx_event_t *ev) {
 
   if ((ngx_http_flush_cache_packets(quic_ctx->chromium_server) == NGX_AGAIN ||
        ngx_http_can_write(quic_ctx->chromium_server) == NGX_AGAIN)
-      && quic_ctx->lc) {
+      && quic_ctx->lc
+      && quic_ctx->lc->write->active == 0) {
     ngx_add_event(quic_ctx->lc->write, NGX_WRITE_EVENT, NGX_LEVEL_EVENT);
   }
   
