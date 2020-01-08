@@ -1,6 +1,36 @@
-diff -ur src/core/ngx_connection.h src-quic/core/ngx_connection.h
---- src/core/ngx_connection.h	2019-04-23 21:12:58.000000000 +0800
-+++ src-quic/core/ngx_connection.h	2019-12-18 12:16:09.308027135 +0800
+diff -ru ./auto/modules ../nginx-1.16.0.quic/auto/modules
+--- ./auto/modules	2019-04-23 21:12:58.000000000 +0800
++++ ../nginx-1.16.0.quic/auto/modules	2020-01-08 10:34:22.982756899 +0800
+@@ -1388,6 +1388,26 @@
+ 
+ END
+ 
++
++# NGX_G_QUIC
++ngx_rtmp_quic_module="no"
++tmp_modules=""
++for mod in $modules
++do
++    if [ $mod = "ngx_rtmp_quic_module" ]; then
++        ngx_rtmp_quic_module="ngx_rtmp_quic_module"
++    else
++        tmp_modules="$tmp_modules $mod"
++    fi
++done
++
++if [ $ngx_rtmp_quic_module != "no" ]; then
++    tmp_modules="$tmp_modules $ngx_rtmp_quic_module"
++fi
++modules="$tmp_modules"
++#NGX_G_QUIC END
++
++
+ for mod in $modules
+ do
+     echo "extern ngx_module_t  $mod;"         >> $NGX_MODULES_C
+diff -ru ./src/core/ngx_connection.h ../nginx-1.16.0.quic/src/core/ngx_connection.h
+--- ./src/core/ngx_connection.h	2019-04-23 21:12:58.000000000 +0800
++++ ../nginx-1.16.0.quic/src/core/ngx_connection.h	2020-01-08 10:34:22.998756926 +0800
 @@ -194,6 +194,10 @@
  #if (NGX_THREADS || NGX_COMPAT)
      ngx_thread_task_t  *sendfile_task;
@@ -12,9 +42,9 @@ diff -ur src/core/ngx_connection.h src-quic/core/ngx_connection.h
  };
  
  
-diff -ur src/http/ngx_http.c src-quic/http/ngx_http.c
---- src/http/ngx_http.c	2019-04-23 21:12:58.000000000 +0800
-+++ src-quic/http/ngx_http.c	2019-12-18 12:16:09.332027133 +0800
+diff -ru ./src/http/ngx_http.c ../nginx-1.16.0.quic/src/http/ngx_http.c
+--- ./src/http/ngx_http.c	2019-04-23 21:12:58.000000000 +0800
++++ ../nginx-1.16.0.quic/src/http/ngx_http.c	2020-01-08 10:34:23.014756953 +0800
 @@ -1147,6 +1147,11 @@
      ngx_http_conf_port_t       *port;
      ngx_http_core_main_conf_t  *cmcf;
@@ -80,9 +110,9 @@ diff -ur src/http/ngx_http.c src-quic/http/ngx_http.c
          addrs6[i].conf.proxy_protocol = addr[i].opt.proxy_protocol;
  
          if (addr[i].hash.buckets == NULL
-diff -ur src/http/ngx_http_core_module.c src-quic/http/ngx_http_core_module.c
---- src/http/ngx_http_core_module.c	2019-04-23 21:12:58.000000000 +0800
-+++ src-quic/http/ngx_http_core_module.c	2019-12-18 12:16:09.332027133 +0800
+diff -ru ./src/http/ngx_http_core_module.c ../nginx-1.16.0.quic/src/http/ngx_http_core_module.c
+--- ./src/http/ngx_http_core_module.c	2019-04-23 21:12:58.000000000 +0800
++++ ../nginx-1.16.0.quic/src/http/ngx_http_core_module.c	2020-01-08 10:34:23.010756947 +0800
 @@ -3808,6 +3808,9 @@
  #if (NGX_HAVE_INET6)
      lsopt.ipv6only = 1;
@@ -108,9 +138,9 @@ diff -ur src/http/ngx_http_core_module.c src-quic/http/ngx_http_core_module.c
  #if (NGX_HAVE_SETFIB)
          if (ngx_strncmp(value[n].data, "setfib=", 7) == 0) {
              lsopt.setfib = ngx_atoi(value[n].data + 7, value[n].len - 7);
-diff -ur src/http/ngx_http_core_module.h src-quic/http/ngx_http_core_module.h
---- src/http/ngx_http_core_module.h	2019-04-23 21:12:58.000000000 +0800
-+++ src-quic/http/ngx_http_core_module.h	2019-12-18 12:16:09.332027133 +0800
+diff -ru ./src/http/ngx_http_core_module.h ../nginx-1.16.0.quic/src/http/ngx_http_core_module.h
+--- ./src/http/ngx_http_core_module.h	2019-04-23 21:12:58.000000000 +0800
++++ ../nginx-1.16.0.quic/src/http/ngx_http_core_module.h	2020-01-08 10:34:23.010756947 +0800
 @@ -101,6 +101,11 @@
  #if (NGX_HAVE_DEFERRED_ACCEPT && defined SO_ACCEPTFILTER)
      char                      *accept_filter;
@@ -133,9 +163,9 @@ diff -ur src/http/ngx_http_core_module.h src-quic/http/ngx_http_core_module.h
  };
  
  
-diff -ur src/http/ngx_http_parse.c src-quic/http/ngx_http_parse.c
---- src/http/ngx_http_parse.c	2019-04-23 21:12:58.000000000 +0800
-+++ src-quic/http/ngx_http_parse.c	2019-12-18 12:16:09.332027133 +0800
+diff -ru ./src/http/ngx_http_parse.c ../nginx-1.16.0.quic/src/http/ngx_http_parse.c
+--- ./src/http/ngx_http_parse.c	2019-04-23 21:12:58.000000000 +0800
++++ ../nginx-1.16.0.quic/src/http/ngx_http_parse.c	2020-01-08 10:34:23.010756947 +0800
 @@ -728,10 +728,15 @@
              }
  
@@ -153,9 +183,9 @@ diff -ur src/http/ngx_http_parse.c src-quic/http/ngx_http_parse.c
  
              state = sw_major_digit;
              break;
-diff -ur src/http/ngx_http_request.c src-quic/http/ngx_http_request.c
---- src/http/ngx_http_request.c	2019-04-23 21:12:58.000000000 +0800
-+++ src-quic/http/ngx_http_request.c	2019-12-18 12:16:09.332027133 +0800
+diff -ru ./src/http/ngx_http_request.c ../nginx-1.16.0.quic/src/http/ngx_http_request.c
+--- ./src/http/ngx_http_request.c	2019-04-23 21:12:58.000000000 +0800
++++ ../nginx-1.16.0.quic/src/http/ngx_http_request.c	2020-01-08 10:34:23.010756947 +0800
 @@ -3173,6 +3173,13 @@
          }
      }
@@ -170,9 +200,9 @@ diff -ur src/http/ngx_http_request.c src-quic/http/ngx_http_request.c
      c->log->action = "keepalive";
  
      if (c->tcp_nopush == NGX_TCP_NOPUSH_SET) {
-diff -ur src/http/ngx_http_request.h src-quic/http/ngx_http_request.h
---- src/http/ngx_http_request.h	2019-04-23 21:12:58.000000000 +0800
-+++ src-quic/http/ngx_http_request.h	2019-12-18 12:16:09.332027133 +0800
+diff -ru ./src/http/ngx_http_request.h ../nginx-1.16.0.quic/src/http/ngx_http_request.h
+--- ./src/http/ngx_http_request.h	2019-04-23 21:12:58.000000000 +0800
++++ ../nginx-1.16.0.quic/src/http/ngx_http_request.h	2020-01-08 10:34:23.010756947 +0800
 @@ -24,6 +24,9 @@
  #define NGX_HTTP_VERSION_10                1000
  #define NGX_HTTP_VERSION_11                1001
@@ -183,9 +213,9 @@ diff -ur src/http/ngx_http_request.h src-quic/http/ngx_http_request.h
  
  #define NGX_HTTP_UNKNOWN                   0x0001
  #define NGX_HTTP_GET                       0x0002
-diff -ur src/os/unix/ngx_linux_config.h src-quic/os/unix/ngx_linux_config.h
---- src/os/unix/ngx_linux_config.h	2019-04-23 21:12:58.000000000 +0800
-+++ src-quic/os/unix/ngx_linux_config.h	2019-12-18 12:16:09.340027132 +0800
+diff -ru ./src/os/unix/ngx_linux_config.h ../nginx-1.16.0.quic/src/os/unix/ngx_linux_config.h
+--- ./src/os/unix/ngx_linux_config.h	2019-04-23 21:12:58.000000000 +0800
++++ ../nginx-1.16.0.quic/src/os/unix/ngx_linux_config.h	2020-01-08 10:34:23.030756980 +0800
 @@ -52,7 +52,11 @@
  #include <malloc.h>             /* memalign() */
  #include <limits.h>             /* IOV_MAX */
