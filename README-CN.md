@@ -9,6 +9,9 @@
 
 目前此项目仅在linux内核下，epoll网络模型下进行过测试，需要linux内核4.18.20-1.el6.elrepo.x86_64以上，推荐使用nginx-1.16.0以上的版本，目前只在1.14.2和1.16.0两个版本上测试。
 
+我们实现了一套 "RTMP over quic" 的解决方案，在服务端采用[nginx-rtmp-module](https://github.com/arut/nginx-rtmp-module) ，在客户端采用[srs-librtmp](https://github.com/ossrs/srs)\
+ 这个srs-librtmp quic版本项目实现链接为： https://github.com/sonysuqin/SrsQuic.
+
 bin目录下提供了一个已经编译好的nginx-quic，大家可以在centos，redhat，ubuntu等版本中运行测试，nginx-quic的 --prefix=/opt/nginx/。
 
 ---
@@ -27,6 +30,7 @@ nginx-quic编译步骤比较复杂，因为用到了chromium项目中的编译�
              </path/to/chromium/src>:    chromium源码src目录路径。
              < args>:                                          configure nginx时，所需的参数。                 
 ```
+- 如果需要编译rtmp-quic,  需要添加 "--add-module=/path/to/nginx-quic/quic_rtmp/nginx-rtmp-module"。
 - 切到chromium的src目录，执行 gn gen out/Release --args="is_component_build=false is_debug=false"。
 - 执行 ninja -C out/Release  nginx，编译好的nginx-quic就在 out/Release目录中。
 
@@ -117,6 +121,61 @@ Default:         quic_idle_network_timeout     10m;
 Context:        http,  server,   location
 客户端网络空闲超时时间，默认10分钟。
 ```
+
+
+---
+
+## nginx-rtmp Configuration
+
+### Example Configuration
+
+
+  >           rtmp {
+>
+>               ...
+>
+>               server {
+>
+>                          listen         1935 so_keepalive=on;
+>                          listen         1935 quic reuseport;
+>
+>                          ssl_certificate                ssl/tv.test.com.crt;
+>                          ssl_certificate_key       ssl/tv.test.com.key;
+>
+>                        application live {
+>                                  live on;
+>                                  idle_streams        off;
+>                                  drop_idle_publisher 1800s;
+>                                  sync                1s;
+>                                  wait_key            on;
+>                                  wait_video          on;
+>                         }
+>               }
+>       }
+
+###  Directives
+```
+Syntax:                listen   quic;
+Default:               listen   *:80 | *:8000 quic;
+Context:              server
+Example:             listen       1935 quic reuseport sndbuf=1048576 rcvbuf=1048576;
+为listen配置新加一个参数quic， 只要带这个参数，这个监听就会使用quic协议，需要注意 quic 参数与ssl， http2参数不兼容，不可同时使用，使用quic参数，务必带上reuseport
+
+
+Syntax:       quic_stream_buffered_size   1048576;
+Default:      1048576
+Context:      server
+设置发送quic stream 发送缓存大小,单位字节，默认10M.
+
+
+Syntax:          quic_flush_interval     number;
+Default:         quic_flush_interval     40;
+Context:        http,  server,   location
+间隔多少毫秒刷新一次系统调用sendmmsg的缓冲输出。
+
+
+```
+
 
 ## Copyright
 - 搜狐视频

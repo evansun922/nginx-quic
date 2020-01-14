@@ -10,6 +10,9 @@ this project requires nignx and chromium source code
 
 At present, this project had only been tested under the Linux kernel and epoll network, which requires Linux kernel 4.18.20-1. El6. Elrepo. X86_64 and above, currently, nginx-quic only test on 1.14.2 and 1.16.0 version of nginx,  and nginx-1.16.0 and above is recommended.
 
+We implemented a set of "RTMP over quic" solutions, using  [nginx-rtmp-module](https://github.com/arut/nginx-rtmp-module)  for the server and [srs-librtmp](https://github.com/ossrs/srs) for the client,  this srs-librtmp-quic project links is https://github.com/sonysuqin/SrsQuic.
+
+
 There is a compiled nginx-quic in bin,you can run it on centos, redhat, ubuntu, etc, the test nginx-quic's --prefix=/opt/nginx/.
 
 [中文版文档](https://github.com/evansun922/nginx-quic/blob/master/README-CN.md)
@@ -29,6 +32,7 @@ The compilation needs to be carried out under ubuntu 14, which can be compiled u
              </path/to/chromium/src>:    path of chromium/src.
              < args>:                                          when configure nginx, the parameters required to configure.                 
 ```
+- if you need  to build rtmp-quic,  you can add "--add-module=/path/to/nginx-quic/quic_rtmp/nginx-rtmp-module".
 - cd /path/to/chromium/src, and run __gn gen out/Release --args="is_component_build=false is_debug=false"__.
 - run __ninja -C out/Release  nginx__.
 
@@ -118,6 +122,58 @@ Syntax:          quic_idle_network_timeout     time;
 Default:         quic_idle_network_timeout     10m;
 Context:        http,  server,   location
 Idle network timeout in seconds.
+```
+
+---
+
+## nginx-rtmp Configuration
+
+### Example Configuration
+
+
+  >           rtmp {
+>
+>               ...
+>
+>               server {
+>
+>                          listen         1935 so_keepalive=on;
+>                          listen         1935 quic reuseport;
+>
+>                          ssl_certificate                ssl/tv.test.com.crt;
+>                          ssl_certificate_key       ssl/tv.test.com.key; 
+>                                                                  
+>                        application live {
+>                                  live on;
+>                                  idle_streams        off;
+>                                  drop_idle_publisher 1800s;
+>                                  sync                1s;
+>                                  wait_key            on;
+>                                  wait_video          on;    
+>                         }
+>               }
+>       }
+
+###  Directives
+```
+Syntax:                listen   quic;
+Default:               listen   *:80 | *:8000 quic;
+Context:              server
+Example:             listen       1935 quic reuseport sndbuf=1048576 rcvbuf=1048576;
+add flag "quic" of "listen" for using quic ,  when you use flag "quic", be sure to bring the flag "reuseport" and you can not used "ssl" or "http2" at the same time.
+
+
+Syntax:       quic_stream_buffered_size   1048576;
+Default:      1048576 
+Context:      server
+send cache size of quic stream.
+
+
+Syntax:          quic_flush_interval     number;
+Default:         quic_flush_interval     40;
+Context:        http,  server,   location
+the buffered of sendmmsg is refreshed every "number" milliseconds.
+
 ```
 
 ## Copyright
