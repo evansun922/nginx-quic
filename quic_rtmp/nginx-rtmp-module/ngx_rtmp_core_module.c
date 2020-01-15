@@ -45,7 +45,11 @@ static ngx_command_t  ngx_rtmp_core_commands[] = {
       NULL },
 
     { ngx_string("listen"),
+#if NGX_G_QUIC
+      NGX_RTMP_SRV_CONF|NGX_CONF_1MORE,
+#else
       NGX_RTMP_SRV_CONF|NGX_CONF_TAKE12,
+#endif
       ngx_rtmp_core_listen,
       NGX_RTMP_SRV_CONF_OFFSET,
       0,
@@ -499,7 +503,7 @@ ngx_rtmp_core_listen(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 {
     size_t                      len, off;
     in_port_t                   port;
-    ngx_str_t                  *value;
+    ngx_str_t                  *value,size;
     ngx_url_t                   u;
     ngx_uint_t                  i, m;
     ngx_module_t              **modules;
@@ -606,7 +610,49 @@ ngx_rtmp_core_listen(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
             ls->quic = 1;
             continue;
         }
+
+        if (ngx_strncmp(value[i].data, "rcvbuf=", 7) == 0) {
+            size.len = value[i].len - 7;
+            size.data = value[i].data + 7;
+
+            ls->rcvbuf = ngx_parse_size(&size);
+
+            if (ls->rcvbuf == NGX_ERROR) {
+                ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                                   "invalid rcvbuf \"%V\"", &value[i]);
+                return NGX_CONF_ERROR;
+            }
+
+            continue;
+        }
+
+        if (ngx_strncmp(value[i].data, "sndbuf=", 7) == 0) {
+            size.len = value[i].len - 7;
+            size.data = value[i].data + 7;
+
+            ls->sndbuf = ngx_parse_size(&size);
+
+            if (ls->sndbuf == NGX_ERROR) {
+                ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                                   "invalid sndbuf \"%V\"", &value[i]);
+                return NGX_CONF_ERROR;
+            }
+
+            continue;
+        }
+
+        if (ngx_strcmp(value[i].data, "reuseport") == 0) {
+#if (NGX_HAVE_REUSEPORT)
+            ls->reuseport = 1;
+
+#else
+            ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                               "reuseport is not supported "
+                               "on this platform, ignored");
 #endif
+            continue;
+        }
+#endif // NGX_G_QUIC
       
         if (ngx_strcmp(value[i].data, "bind") == 0) {
             ls->bind = 1;

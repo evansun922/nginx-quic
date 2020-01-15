@@ -53,6 +53,9 @@ typedef struct {
 
 #if NGX_G_QUIC
     unsigned                quic:1;
+    unsigned                reuseport:1;
+    int                     rcvbuf;
+    int                     sndbuf;
 #endif
 
 } ngx_rtmp_listen_t;
@@ -117,6 +120,9 @@ typedef struct {
 
 #if NGX_G_QUIC
     unsigned                quic:1;
+    unsigned                reuseport:1;
+    int                     rcvbuf;
+    int                     sndbuf;
 #endif
 } ngx_rtmp_conf_addr_t;
 

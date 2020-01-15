@@ -591,6 +591,9 @@ found:
 
 #if NGX_G_QUIC
     addr->quic = listen->quic;
+    addr->reuseport = listen->reuseport;
+    addr->rcvbuf = listen->rcvbuf;
+    addr->sndbuf = listen->sndbuf;
 #endif
 
     return NGX_OK;
@@ -666,6 +669,10 @@ ngx_rtmp_optimize_servers(ngx_conf_t *cf, ngx_array_t *ports)
             if (addr[i].quic) {
                 ls->type = SOCK_DGRAM;
             }
+
+            ls->reuseport = addr[i].reuseport;            
+            ls->rcvbuf = addr[i].rcvbuf == 0 ? -1 : addr[i].rcvbuf;
+            ls->sndbuf = addr[i].sndbuf == 0 ? -1 : addr[i].sndbuf;
 #endif 
 
             mport = ngx_palloc(cf->pool, sizeof(ngx_rtmp_port_t));
