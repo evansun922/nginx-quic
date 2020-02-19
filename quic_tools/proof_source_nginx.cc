@@ -290,4 +290,64 @@ ProofSourceNginx::ProofItem* ProofSourceNginx::GetProofItem
   return it->second;
 }
 
+#ifdef __cplusplus
+extern "C"  {
+#endif
+void nginx_quic_logging_callback(uintptr_t level, const char *str);
+#ifdef __cplusplus
+}
+#endif
+  
+bool LogMessageHandlerNginx(int severity,
+                               const char* file,
+                               int line,
+                               size_t message_start,
+                               const std::string& str) {
+
+  switch (severity) {
+    case logging::LOG_VERBOSE:
+      nginx_quic_logging_callback(8, str.c_str());
+      break;
+    case logging::LOG_INFO:
+      nginx_quic_logging_callback(7, str.c_str());
+      break;
+    case logging::LOG_WARNING:
+      nginx_quic_logging_callback(5, str.c_str());
+      break;
+    case logging::LOG_ERROR:
+      nginx_quic_logging_callback(4, str.c_str());
+      break;
+    case logging::LOG_FATAL:
+    case logging::LOG_NUM_SEVERITIES:
+      nginx_quic_logging_callback(3, str.c_str());
+      break;    
+  }
+
+  return true;
+}
+  
+void quic_nginx_init_logging(uintptr_t ngx_log_level) {
+  logging::SetLogMessageHandler(LogMessageHandlerNginx);
+  
+  logging::LoggingSettings settings;
+  settings.logging_dest = logging::LOG_TO_SYSTEM_DEBUG_LOG;
+  if (ngx_log_level == 7 /*NGX_LOG_INFO*/) {
+    logging::SetMinLogLevel(logging::LOG_INFO);
+  } else if (ngx_log_level == 6 /*NGX_LOG_NOTICE*/ ||
+             ngx_log_level == 5 /*NGX_LOG_WARN*/) {
+    logging::SetMinLogLevel(logging::LOG_WARNING);
+  } else if (ngx_log_level == 4 /*NGX_LOG_ERR*/) {
+    logging::SetMinLogLevel(logging::LOG_ERROR);
+  } else if (ngx_log_level < 4) {
+    logging::SetMinLogLevel(logging::LOG_FATAL); 
+  } else {
+    logging::SetMinLogLevel(logging::LOG_VERBOSE);
+  }
+  // settings.logging_dest = logging::LOG_TO_ALL;
+  // settings.log_file = "/tmp/quic.log";
+  // settings.delete_old = logging::DELETE_OLD_LOG_FILE;
+  
+  CHECK(logging::InitLogging(settings));
+}
+
 }  // namespace net

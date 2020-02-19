@@ -81,6 +81,8 @@ class NET_EXPORT_PRIVATE ProofSourceNginx : public quic::ProofSource {
   DISALLOW_COPY_AND_ASSIGN(ProofSourceNginx);
 };
 
+void quic_nginx_init_logging(uintptr_t ngx_log_level);
+
 }  // namespace net
 
 #endif  // NET_QUIC_CRYPTO_PROOF_SOURCE_CHROMIUM_H_

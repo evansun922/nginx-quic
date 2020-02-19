@@ -45,7 +45,8 @@ void* ngx_rtmp_init_quic(void* ngx_module_context,
                          char **certificate_key_list,
                          ProcessRtmpData process_rtmp_data,
                          SetVisitorForNgx set_visitor_for_ngx,
-                         SetEPOLLOUT set_epoll_out);
+                         SetEPOLLOUT set_epoll_out,
+                         uintptr_t ngx_log_level);
 
 void ngx_rtmp_free_quic(void* chromium_server);
 

@@ -36,7 +36,8 @@ void* ngx_rtmp_init_quic(void* ngx_module_context,
                          char **certificate_key_list,
                          ProcessRtmpData process_rtmp_data,
                          SetVisitorForNgx set_visitor_for_ngx,
-                         SetEPOLLOUT set_epoll_out) {
+                         SetEPOLLOUT set_epoll_out,
+                         uintptr_t ngx_log_level) {
   // base::AtExitManager exit_manager;
   
   int quic_argc = 0;
@@ -69,12 +70,7 @@ void* ngx_rtmp_init_quic(void* ngx_module_context,
     quic_argv[i] = nullptr;
   }
 
-  logging::LoggingSettings settings;
-  settings.logging_dest = logging::LOG_TO_SYSTEM_DEBUG_LOG;
-  // settings.logging_dest = logging::LOG_TO_ALL;
-  // settings.log_file = "/tmp/quic.log";
-  // settings.delete_old = logging::DELETE_OLD_LOG_FILE;
-  CHECK(logging::InitLogging(settings));
+  quic::quic_nginx_init_logging(ngx_log_level);
 
   // bbr
   SetQuicReloadableFlag(quic_default_to_bbr_v2, true);

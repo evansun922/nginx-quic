@@ -460,7 +460,8 @@ ngx_http_quic_process_init(ngx_cycle_t *cycle)
                                     certificate_key_list,
                                     qscf->bbr,
                                     qscf->ietf_draft,
-                                    qscf->idle_network_timeout);
+                                    qscf->idle_network_timeout,
+                                    cycle->log->log_level);
       if (quic_ctx->chromium_server == NULL) {
         ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "chromium init failed");
         return NGX_ERROR;

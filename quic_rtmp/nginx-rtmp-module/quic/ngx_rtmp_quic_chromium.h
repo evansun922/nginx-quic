@@ -21,7 +21,8 @@ void* ngx_rtmp_quic_init_chromium(
                  int port,
                  int address_family,
                  char **certificate_list,
-                 char **certificate_key_list);
+                 char **certificate_key_list,
+                 uintptr_t ngx_log_level);
 void ngx_rtmp_event_quic_recvmsg(ngx_event_t *ev);
 void ngx_rtmp_event_quic_can_sendmsg(ngx_event_t *ev);
 

@@ -52,7 +52,8 @@ void* ngx_http_init_quic(void* ngx_module_context,
                          char **certificate_key_list,
                          int bbr,
                          int ietf_draft,
-                         int idle_network_timeout);
+                         int idle_network_timeout,
+                         uintptr_t ngx_log_level);
 
 void ngx_http_free_quic(void* chromium_server);
 

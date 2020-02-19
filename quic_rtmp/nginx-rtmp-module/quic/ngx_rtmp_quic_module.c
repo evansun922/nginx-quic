@@ -344,7 +344,8 @@ ngx_rtmp_quic_process_init(ngx_cycle_t *cycle)
                                        p,
                                        ls[i].sockaddr->sa_family,
                                        certificate_list,
-                                       certificate_key_list);
+                                       certificate_key_list,
+                                       cycle->log->log_level);
     if (quic_ctx->chromium_server == NULL) {
       ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "chromium init failed for rtmp");
       return NGX_ERROR;

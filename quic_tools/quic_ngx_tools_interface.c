@@ -266,3 +266,8 @@ ngx_quic_set_epoll_out(void *module_context)
   ngx_add_event(quic_ctx->lc->write, NGX_WRITE_EVENT, NGX_LEVEL_EVENT);
 }
 
+void
+nginx_quic_logging_callback(uintptr_t level, const char *str)
+{
+  ngx_log_error(level, ngx_cycle->log, 0, "chromium_log %s", str);
+}

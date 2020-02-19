@@ -43,7 +43,8 @@ ngx_rtmp_quic_init_chromium(ngx_rtmp_quic_context_t *module_context,
                             int port,
                             int address_family,
                             char **certificate_list,
-                            char **certificate_key_list)
+                            char **certificate_key_list,
+                            uintptr_t ngx_log_level)
 {  
   return ngx_rtmp_init_quic(module_context,
                             listen_fd,
@@ -57,7 +58,8 @@ ngx_rtmp_quic_init_chromium(ngx_rtmp_quic_context_t *module_context,
                             certificate_key_list,
                             ngx_rtmp_process_rtmp_data,
                             ngx_rtmp_set_visitor_for_connection,
-                            ngx_quic_set_epoll_out);
+                            ngx_quic_set_epoll_out,
+                            ngx_log_level);
 }
 
 
