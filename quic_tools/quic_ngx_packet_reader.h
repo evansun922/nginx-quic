@@ -19,10 +19,10 @@ namespace quic {
 #define MMSG_MORE_NO_ANDROID 0
 #endif
   
-#if !MMSG_MORE
-// Read in larger batches to minimize recvmmsg overhead.
-constexpr int kNumPacketsPerReadMmsgCall = 16;
-#endif
+// #if !MMSG_MORE
+// // Read in larger batches to minimize recvmmsg overhead.
+// constexpr int kNumPacketsPerReadMmsgCall = 16;
+// #endif
 
 class QuicNgxPacketReader : public QuicPacketReader {
  public:
