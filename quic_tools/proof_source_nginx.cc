@@ -293,7 +293,10 @@ ProofSourceNginx::ProofItem* ProofSourceNginx::GetProofItem
 #ifdef __cplusplus
 extern "C"  {
 #endif
-void nginx_quic_logging_callback(uintptr_t level, const char *str);
+void nginx_quic_logging_callback(uintptr_t level,
+                                 const char* file,
+                                 int line,
+                                 const char *str);
 #ifdef __cplusplus
 }
 #endif
@@ -306,20 +309,25 @@ bool LogMessageHandlerNginx(int severity,
 
   switch (severity) {
     case logging::LOG_VERBOSE:
-      nginx_quic_logging_callback(8, str.c_str());
+      nginx_quic_logging_callback(8, file, line,
+                                  str.c_str()+message_start);
       break;
     case logging::LOG_INFO:
-      nginx_quic_logging_callback(7, str.c_str());
+      nginx_quic_logging_callback(7, file, line,
+                                  str.c_str()+message_start);
       break;
     case logging::LOG_WARNING:
-      nginx_quic_logging_callback(5, str.c_str());
+      nginx_quic_logging_callback(5, file, line,
+                                  str.c_str()+message_start);
       break;
     case logging::LOG_ERROR:
-      nginx_quic_logging_callback(4, str.c_str());
+      nginx_quic_logging_callback(4, file, line,
+                                  str.c_str()+message_start);
       break;
     case logging::LOG_FATAL:
     case logging::LOG_NUM_SEVERITIES:
-      nginx_quic_logging_callback(3, str.c_str());
+      nginx_quic_logging_callback(3, file, line,
+                                  str.c_str()+message_start);
       break;    
   }
 

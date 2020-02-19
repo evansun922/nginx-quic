@@ -267,7 +267,17 @@ ngx_quic_set_epoll_out(void *module_context)
 }
 
 void
-nginx_quic_logging_callback(uintptr_t level, const char *str)
+nginx_quic_logging_callback(uintptr_t level,
+                            const char* file,
+                            int line,
+                            const char *str)
 {
-  ngx_log_error(level, ngx_cycle->log, 0, "chromium_log %s", str);
+  ngx_log_error(level, ngx_cycle->log, 0,
+                "[chromium_log] %s:%d %s",
+                file,
+                line,
+                str);
 }
+
+
+
