@@ -257,9 +257,15 @@ static void
 ngx_rtmp_set_visitor_for_connection(void* ngx_connection,
                                     void* quic_visitor)
 {
-  ngx_connection_t  *c = ngx_connection;
+  ngx_connection_t   *c = ngx_connection;
+  ngx_rtmp_session_t *s = c->data;
   
   c->quic_stream = quic_visitor;
+
+  if (!quic_visitor) {
+    // this client had disconnected from chromium
+    ngx_rtmp_finalize_session(s);
+  }
 }
 
 
