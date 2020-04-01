@@ -183,7 +183,7 @@ QuicDispatcher* QuicNgxHttpServer::CreateQuicDispatcher(void* ngx_module_context
   return new QuicNgxHttpDispatcher(
       &config_, &crypto_config_, &version_manager_,
       std::unique_ptr<quic::QuicConnectionHelperInterface>(helper_),
-      std::unique_ptr<QuicCryptoServerStream::Helper>(
+      std::unique_ptr<QuicCryptoServerStreamBase::Helper>(
           new QuicSimpleCryptoServerStreamHelper()),
       std::unique_ptr<QuicAlarmFactory>(
          new QuicNgxAlarmFactory(ngx_module_context,

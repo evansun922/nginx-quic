@@ -28,9 +28,9 @@ namespace {
 using quic::CryptoHandshakeMessage;
 using quic::ParsedQuicVersion;
 using quic::PROTOCOL_TLS1_3;
-using quic::QUIC_VERSION_99;
+using quic::QUIC_VERSION_IETF_DRAFT_25;
 using quic::QuicChromiumClock;
-using quic::QuicCryptoServerStream;
+using quic::QuicCryptoServerStreamBase;
 using quic::QuicSocketAddress;
 using quic::QuicTransportSimpleServerSession;
 
@@ -42,7 +42,7 @@ constexpr size_t kMaxNewConnectionsPerEvent = 32;
 }  // namespace
 
 class QuicNgxRtmpSessionHelper
-    : public QuicCryptoServerStream::Helper {
+    : public QuicCryptoServerStreamBase::Helper {
  public:
   bool CanAcceptClientHello(const CryptoHandshakeMessage& /*message*/,
                             const QuicSocketAddress& /*client_address*/,
@@ -57,7 +57,9 @@ QuicNgxRtmpServer::QuicNgxRtmpServer(int fd, int port,
                   std::unique_ptr<quic::ProofSource> proof_source)
   : fd_(fd),
     port_(port),
-    version_manager_({ParsedQuicVersion{PROTOCOL_TLS1_3, QUIC_VERSION_99}}),
+    // version_manager_({ParsedQuicVersion{PROTOCOL_TLS1_3,
+    //         QUIC_VERSION_IETF_DRAFT_25}}),
+    version_manager_({quic::DefaultVersionForQuicTransport()}),
     clock_(QuicChromiumClock::GetInstance()),
     crypto_config_(kSourceAddressTokenSecret,
                    quic::QuicRandom::GetInstance(),

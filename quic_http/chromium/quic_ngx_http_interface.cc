@@ -70,14 +70,15 @@ void* ngx_http_init_quic(void* ngx_module_context,
   std::vector<std::string> non_option_args =
     quic::QuicParseCommandLineFlags(usage, quic_argc,
                    reinterpret_cast<char **>(quic_argv));
-  if (!non_option_args.empty()) {
-    quic::QuicPrintCommandLineFlagHelp(usage);
-    exit(0);
-  }
 
   for (int i = 0; i < quic_argc; i++) {
     delete[] quic_argv[i];
     quic_argv[i] = nullptr;
+  }
+  
+  if (!non_option_args.empty()) {
+    quic::QuicPrintCommandLineFlagHelp(usage);
+    return nullptr;
   }
 
   quic::quic_nginx_init_logging(ngx_log_level);
@@ -89,12 +90,21 @@ void* ngx_http_init_quic(void* ngx_module_context,
   quic::ParsedQuicVersionVector supported_versions;
   if (ietf_draft) {
     quic::QuicVersionInitializeSupportForIetfDraft();
-    supported_versions = {quic::ParsedQuicVersion(
-                          quic::PROTOCOL_TLS1_3,
-                          quic::QUIC_VERSION_99)};
+    for (const quic::ParsedQuicVersion& version : quic::AllSupportedVersions()) {
+      // Add all versions that supports IETF QUIC.
+      if (version.HasIetfQuicFrames() &&
+          version.handshake_protocol == quic::PROTOCOL_TLS1_3) {
+        supported_versions.push_back(version);
+      }
+    }
   } else {
     supported_versions = quic::AllSupportedVersions();
   }
+
+  if (supported_versions.empty()) {
+    return nullptr;
+  }
+  
   for (const auto& version : supported_versions) {
     QuicEnableVersion(version);
   }

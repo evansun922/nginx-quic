@@ -7,7 +7,7 @@
 #define QUICHE_QUIC_NGX_PACKET_READER_H_
 
 #include "net/third_party/quiche/src/quic/core/quic_packet_reader.h"
-
+#include "net/quic/platform/impl/quic_socket_utils.h"
 
 namespace quic {
 
@@ -19,10 +19,6 @@ namespace quic {
 #define MMSG_MORE_NO_ANDROID 0
 #endif
   
-// #if !MMSG_MORE
-// // Read in larger batches to minimize recvmmsg overhead.
-// constexpr int kNumPacketsPerReadMmsgCall = 16;
-// #endif
 
 class QuicNgxPacketReader : public QuicPacketReader {
  public:
