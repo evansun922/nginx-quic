@@ -140,11 +140,12 @@ bool ProofSourceNginx::Initialize(const base::FilePath& cert_path,
 }
 
 void ProofSourceNginx::GetProof(const quic::QuicSocketAddress& server_addr,
-                                   const std::string& hostname,
-                                   const std::string& server_config,
-                                   quic::QuicTransportVersion quic_version,
-                                   quiche::QuicheStringPiece chlo_hash,
-                                   std::unique_ptr<Callback> callback) {
+                                const quic::QuicSocketAddress& client_addr,
+                                const std::string& hostname,
+                                const std::string& server_config,
+                                quic::QuicTransportVersion quic_version,
+                                quiche::QuicheStringPiece chlo_hash,
+                                std::unique_ptr<Callback> callback) {
   // As a transitional implementation, just call the synchronous version of
   // GetProof, then invoke the callback with the results and destroy it.
   quic::QuicReferenceCountedPointer<quic::ProofSource::Chain> chain;
@@ -159,7 +160,8 @@ void ProofSourceNginx::GetProof(const quic::QuicSocketAddress& server_addr,
 
 quic::QuicReferenceCountedPointer<quic::ProofSource::Chain>
 ProofSourceNginx::GetCertChain(const quic::QuicSocketAddress& server_address,
-                                  const std::string& hostname) {
+                               const quic::QuicSocketAddress& client_address,
+                               const std::string& hostname) {
   ProofItem* proof_item = GetProofItem(hostname);
   if (proof_item == nullptr) {
     quic::QuicReferenceCountedPointer<quic::ProofSource::Chain> chain;
@@ -170,6 +172,7 @@ ProofSourceNginx::GetCertChain(const quic::QuicSocketAddress& server_address,
 
 void ProofSourceNginx::ComputeTlsSignature(
     const quic::QuicSocketAddress& server_address,
+    const quic::QuicSocketAddress& client_address,
     const std::string& hostname,
     uint16_t signature_algorithm,
     quiche::QuicheStringPiece in,
@@ -207,6 +210,15 @@ void ProofSourceNginx::ComputeTlsSignature(
   sig.resize(siglen);
 
   callback->Run(true, sig, nullptr);
+}
+
+quic::ProofSource::TicketCrypter* ProofSourceNginx::GetTicketCrypter() {
+  return ticket_crypter_.get();
+}
+
+void ProofSourceNginx::SetTicketCrypter(
+     std::unique_ptr<quic::ProofSource::TicketCrypter> ticket_crypter) {
+  ticket_crypter_ = std::move(ticket_crypter);
 }
 
 bool ProofSourceNginx::GetProofInner(

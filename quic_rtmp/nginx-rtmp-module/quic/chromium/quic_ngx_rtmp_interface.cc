@@ -12,6 +12,7 @@
 #include "base/strings/stringprintf.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
+#include "net/third_party/quiche/src/quic/tools/simple_ticket_crypter.h"
 #include "quic_ngx_rtmp_server.h"
 #include "quic_ngx_rtmp_interface.h"
 #include "proof_source_nginx.h"
@@ -77,6 +78,9 @@ void* ngx_rtmp_init_quic(void* ngx_module_context,
 
 
   auto proof_source = std::make_unique<quic::ProofSourceNginx>();
+  proof_source->SetTicketCrypter(
+      std::make_unique<quic::SimpleTicketCrypter>
+      (quic::QuicChromiumClock::GetInstance()));
   for (int i = 0; certificate_list[i] && certificate_key_list[i]; i++) {
     
     proof_source->Initialize(base::FilePath(certificate_list[i]),

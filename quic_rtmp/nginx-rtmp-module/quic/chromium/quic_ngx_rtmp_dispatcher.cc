@@ -38,12 +38,13 @@ QuicNgxRtmpDispatcher::QuicNgxRtmpDispatcher(
 
 std::unique_ptr<QuicSession>
 QuicNgxRtmpDispatcher::CreateQuicSession(
-    QuicConnectionId server_connection_id,
+    QuicConnectionId connection_id,
+    const QuicSocketAddress& /*self_address*/,
     const QuicSocketAddress& peer_address,
     quiche::QuicheStringPiece /*alpn*/,
     const ParsedQuicVersion& version) {
   auto connection = std::make_unique<QuicConnection>(
-      server_connection_id, peer_address, helper(), alarm_factory(), writer(),
+      connection_id, peer_address, helper(), alarm_factory(), writer(),
       /*owns_writer=*/false, Perspective::IS_SERVER,
       ParsedQuicVersionVector{version});
   auto session = std::make_unique<QuicNgxRtmpSession>(

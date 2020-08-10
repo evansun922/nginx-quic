@@ -93,8 +93,7 @@ QuicNgxHttpServer::QuicNgxHttpServer(
     ngx_module_context_(nullptr),
     set_epoll_out_(nullptr) {
   if (-1 != idle_network_timeout) {
-    config_.SetIdleNetworkTimeout(QuicTime::Delta::FromSeconds(idle_network_timeout),
-                                  QuicTime::Delta::FromSeconds(idle_network_timeout/2));
+    config_.SetIdleNetworkTimeout(QuicTime::Delta::FromSeconds(idle_network_timeout));
   }
 }
 

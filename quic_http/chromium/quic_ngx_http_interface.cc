@@ -14,9 +14,9 @@
 
 #include "base/at_exit.h"
 #include "base/strings/stringprintf.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_default_proof_providers.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
+#include "net/third_party/quiche/src/quic/tools/simple_ticket_crypter.h"
 #include "quic_ngx_http_backend.h"
 #include "quic_ngx_http_server.h"
 #include "quic_ngx_http_stream.h"
@@ -114,6 +114,9 @@ void* ngx_http_init_quic(void* ngx_module_context,
   backend->set_ngx_args(req_quic_2_ngx, set_stream_for_ngx);
 
   auto proof_source = std::make_unique<quic::ProofSourceNginx>();
+  proof_source->SetTicketCrypter(
+      std::make_unique<quic::SimpleTicketCrypter>
+      (quic::QuicChromiumClock::GetInstance()));
   for (int i = 0; certificate_list[i] && certificate_key_list[i]; i++) {
     
     proof_source->Initialize(base::FilePath(certificate_list[i]),
